@@ -39,22 +39,17 @@ VHDL_FILES = \
   ../../../rtl_emard/dvi/vga2dvid.vhd \
   ../../../rtl_emard/dvi/tmds_encoder.vhd \
   ../../../apple2.vhd \
+  ../../../main_roms.vhd \
   ../../../character_rom.vhd \
   ../../../cpu6502.vhd \
-  ../../../disk_ii.vhd \
   ../../../keyboard.vhd \
   ../../../PS2_Ctrl.vhd \
   ../../../spi_controller.vhd \
   ../../../timing_generator.vhd \
   ../../../vga_controller.vhd \
   ../../../video_generator.vhd \
+  ../../../disk_ii.vhd \
   ../../../disk_ii_rom.vhd \
-  ../../../main_roms.vhd \
-
-#i2c_testbench.vhd \
-#timing_testbench.vhd \
-
-#  clock/clk_25M_100M_7M5_12M_60M.vhd \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
