@@ -2,7 +2,7 @@
 PROJECT = apple2
 BOARD = ulx3s
 # 12 25 45 85
-FPGA_SIZE = 12
+FPGA_SIZE = 85
 
 FPGA_PACKAGE = 6bg381c
 # config flash: 1:SPI (standard), 4:QSPI (quad)
@@ -34,7 +34,25 @@ VHDL_FILES = \
   ../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
   ../../../rtl_emard/oled/oled_hex_decoder.vhd \
   ../../../rtl_emard/oled/oled_init_pack.vhd \
-  ../../../rtl_emard/oled/oled_font_pack.vhd
+  ../../../rtl_emard/oled/oled_font_pack.vhd \
+  ../../../rtl_emard/bram/bram_true2p_1clk.vhd \
+  ../../../rtl_emard/dvi/vga2dvid.vhd \
+  ../../../rtl_emard/dvi/tmds_encoder.vhd \
+  ../../../apple2.vhd \
+  ../../../character_rom.vhd \
+  ../../../cpu6502.vhd \
+  ../../../disk_ii.vhd \
+  ../../../keyboard.vhd \
+  ../../../PS2_Ctrl.vhd \
+  ../../../spi_controller.vhd \
+  ../../../timing_generator.vhd \
+  ../../../vga_controller.vhd \
+  ../../../video_generator.vhd \
+  ../../../disk_ii_rom.vhd \
+  ../../../main_roms.vhd \
+
+#i2c_testbench.vhd \
+#timing_testbench.vhd \
 
 #  clock/clk_25M_100M_7M5_12M_60M.vhd \
 
