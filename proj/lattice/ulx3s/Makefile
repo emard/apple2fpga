@@ -2,7 +2,7 @@
 PROJECT = apple2
 BOARD = ulx3s
 # 12 25 45 85
-FPGA_SIZE = 85
+FPGA_SIZE = 25
 
 FPGA_PACKAGE = 6bg381c
 # config flash: 1:SPI (standard), 4:QSPI (quad)
