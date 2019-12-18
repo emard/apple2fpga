@@ -138,10 +138,6 @@ begin
       CLKOS2      =>  clk_14M    --  14.375 MHz
   );
 
-  -- TX/RX passthru
-  --ftdi_rxd <= wifi_txd;
-  --wifi_rxd <= ftdi_txd;
-
   wifi_en <= '1';
   wifi_gpio0 <= btn(0);
   S_reset <= not btn(0);
@@ -166,7 +162,7 @@ begin
     spi_mosi => oled_mosi
   );
   
-  -- APPLE ][
+  -- APPLE ][ --
 
   reset <= (not btn(0)) or power_on_reset;
 
@@ -192,7 +188,6 @@ begin
 
   COLOR_LINE_CONTROL <= COLOR_LINE and SW(3);  -- Color or B&W mode
 
-  G_apple2: if true generate
   core : entity work.apple2 port map (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
@@ -219,7 +214,6 @@ begin
     pcDebugOut     => cpu_pc,
     speaker        => speaker
     );
-  end generate; -- apple2
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
@@ -238,7 +232,6 @@ begin
     );
   VGA_SYNC <= '0';
 
-  G_apple2_soc: if false generate
   keyboard : entity work.keyboard port map (
     PS2_Clk  => usb_fpga_dp,
     PS2_Data => usb_fpga_dn,
@@ -250,6 +243,7 @@ begin
   usb_fpga_pu_dp <= '1';
   usb_fpga_pu_dn <= '1';
 
+  G_apple2_disk: if false generate
   disk : entity work.disk_ii port map (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
@@ -287,7 +281,7 @@ begin
     );
   sd_dat1_irq <= '1';
   sd_dat2     <= '1';
-  end generate; -- apple2_soc
+  end generate; -- apple2_disk
 
   -- selects disk image
   --image <= "0000000" & SW(2 downto 0);
