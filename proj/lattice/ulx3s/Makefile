@@ -44,12 +44,12 @@ VHDL_FILES = \
   ../../../cpu6502.vhd \
   ../../../keyboard.vhd \
   ../../../PS2_Ctrl.vhd \
-  ../../../spi_controller.vhd \
   ../../../timing_generator.vhd \
   ../../../vga_controller.vhd \
   ../../../video_generator.vhd \
   ../../../disk_ii.vhd \
   ../../../disk_ii_rom.vhd \
+  ../../../spi_controller_MIST.vhd \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
