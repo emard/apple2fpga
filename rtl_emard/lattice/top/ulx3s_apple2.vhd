@@ -63,8 +63,8 @@ port
   --flash_csn    : out     std_logic;
 
   -- SD card (SPI1)
-  sd_dat3_csn, sd_cmd_di, sd_dat0_do, sd_dat1_irq, sd_dat2: inout std_logic := 'Z';
-  sd_clk: inout std_logic := 'Z';
+  sd_d: inout std_logic_vector(3 downto 0) := (others => 'Z');
+  sd_clk, sd_cmd: inout std_logic := 'Z';
   sd_cdn, sd_wp: inout std_logic := 'Z'
 );
 end;
@@ -262,14 +262,16 @@ begin
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
+  end generate; -- apple2_disk
 
+  G_apple2_sdcard: if false generate
   sdcard_interface : entity work.spi_controller port map (
     CLK_14M        => CLK_14M,
     RESET          => RESET,
 
-    CS_N           => sd_dat3_csn,
-    MOSI           => sd_cmd_di,
-    MISO           => sd_dat0_do,
+    CS_N           => sd_d(3),
+    MOSI           => sd_cmd,
+    MISO           => sd_d(0),
     SCLK           => sd_clk,
 
     track          => TRACK,
@@ -279,9 +281,9 @@ begin
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
-  sd_dat1_irq <= '1';
-  sd_dat2     <= '1';
-  end generate; -- apple2_disk
+  sd_d(1) <= '1';
+  sd_d(2) <= '1';
+  end generate; -- apple2_sdcard
 
   -- selects disk image
   --image <= "0000000" & SW(2 downto 0);
