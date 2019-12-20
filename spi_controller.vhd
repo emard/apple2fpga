@@ -27,6 +27,8 @@ entity spi_controller is
     MOSI           : out std_logic;     -- Data to card (master out slave in)
     MISO           : in  std_logic;     -- Data from card (master in slave out)
     SCLK           : out std_logic;     -- Card clock
+    -- Debug
+    SDHC           : out std_logic;     -- '1' when SDHC card detected
     -- Track buffer Interface -------------------------------------------------
     ram_write_addr : out unsigned(13 downto 0);
     ram_di         : out unsigned(7 downto 0);
@@ -467,5 +469,5 @@ begin
   end process sd_fsm;
 
   MOSI <= command_out(55);
-
+  SDHC <= '1' when high_capacity else '0';
 end rtl;

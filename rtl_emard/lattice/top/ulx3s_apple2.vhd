@@ -243,7 +243,7 @@ begin
   usb_fpga_pu_dp <= '1';
   usb_fpga_pu_dn <= '1';
 
-  G_apple2_disk: if false generate
+  G_apple2_disk: if true generate
   disk : entity work.disk_ii port map (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
@@ -266,7 +266,7 @@ begin
   led(1) <= D2_ACTIVE;
   end generate; -- apple2_disk
 
-  G_apple2_sdcard: if false generate
+  G_apple2_sdcard: if true generate
   sdcard_interface : entity work.spi_controller port map (
     CLK_14M        => CLK_14M,
     RESET          => RESET,
@@ -276,6 +276,8 @@ begin
     MISO           => sd_d(0),
     SCLK           => sd_clk,
 
+    SDHC           => led(2),
+
     track          => TRACK,
     image          => image,
 
@@ -283,8 +285,10 @@ begin
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
-  sd_d(1) <= '1';
-  sd_d(2) <= '1';
+  sd_d(1) <= 'Z';
+  sd_d(2) <= 'Z';
+  S_oled(45 downto 32) <= TRACK_RAM_ADDR;
+  S_oled(55 downto 48) <= TRACK_RAM_DI;
   end generate; -- apple2_sdcard
 
   -- selects disk image
