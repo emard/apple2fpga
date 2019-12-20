@@ -49,7 +49,7 @@ VHDL_FILES = \
   ../../../video_generator.vhd \
   ../../../disk_ii.vhd \
   ../../../disk_ii_rom.vhd \
-  ../../../spi_controller_MIST.vhd \
+  ../../../spi_controller.vhd \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
