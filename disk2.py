@@ -19,20 +19,45 @@ from time import ticks_ms, sleep_ms
 from machine import SPI, Pin, SDCard, enable_irq, disable_irq
 from micropython import const
 
-class gpint:
+class disk2:
 
   def __init__(self):
-    print("gpio0 interrupt test")
+    self.diskfilename = "disk2.ndo"
+    print("DISK ][ %s" % self.diskfilename)
+    self.track = 0
+    self.tracklen = const(6656)
+    self.trackbuf = bytearray(self.tracklen)
+    self.byte = 0
     self.count = 0
     self.led = Pin(5, Pin.OUT)
-    self.led.on()
+    self.led.off()
     self.gpio0 = Pin(0, Pin.IN)
-    self.gpio0.irq(trigger=Pin.IRQ_FALLING, handler=self.callback)
+    self.gpio0.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
+    self.diskfile = open(self.diskfilename, "r")
+    self.spi_channel = const(1)
+    self.init_pinout_sd()
+    self.spi_freq = const(2000000)
+    self.csn = Pin(self.gpio_csn, Pin.OUT)
+    self.csn.on() # detach SD card from SPI bus
+    self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=1, phase=1, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
 
-  def callback(self, pin):
-    self.count += 1
+  def init_pinout_sd(self):
+    self.gpio_csn  = const(17) # FIXME
+    self.gpio_sck  = const(14)
+    self.gpio_mosi = const(13)
+    self.gpio_miso = const(12)
 
-  def test(self, n=10):
+  @micropython.viper
+  def irq_handler(self, pin):
+    self.led.on()
+    self.track = self.hwspi.read(1)[0]
+    self.diskfile.seek(self.tracklen * self.track)
+    self.diskfile.readinto(self.trackbuf)
+    self.hwspi.write(self.trackbuf)
+    self.byte = self.trackbuf[256]
+    self.led.off()
+
+  def run(self, n=10):
     for i in range(n):
-      sleep_ms(100)
-      print("%d, int=%d" % (i, self.count))
+      sleep_ms(1000)
+      print("%d, track=%d, byte=%02X" % (i, self.track, self.byte))
