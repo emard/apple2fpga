@@ -24,7 +24,8 @@ OPENOCD_INTERFACE=$(SCRIPTS)/ft231x.ocd
 
 # ******* design files *******
 CONSTRAINTS = ../constraints/ulx3s_v20_segpdi.lpf
-TOP_MODULE = ulx3s_apple2
+#TOP_MODULE = ulx3s_apple2
+TOP_MODULE = ulx3s_testbench
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
 
 VERILOG_FILES =
@@ -50,6 +51,7 @@ VHDL_FILES = \
   ../../../disk_ii.vhd \
   ../../../disk_ii_rom.vhd \
   ../../../spi_controller.vhd \
+  ../../../disk2_spi_slave.vhd \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
