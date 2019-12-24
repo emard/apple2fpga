@@ -24,11 +24,8 @@ class disk2:
   def __init__(self):
     self.diskfilename = "disk2.ndo"
     print("DISK ][ %s" % self.diskfilename)
-    self.track = 0
     self.tracklen = const(6656)
     self.trackbuf = bytearray(self.tracklen)
-    self.byte = 0
-    self.count = 0
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.track_change = Pin(17, Pin.IN, Pin.PULL_UP)
@@ -36,13 +33,13 @@ class disk2:
     self.diskfile = open(self.diskfilename, "r")
     self.spi_channel = const(1)
     self.init_pinout_sd()
-    self.spi_freq = const(3000000)
+    self.spi_freq = const(2500000)
     #self.csn = Pin(self.gpio_csn, Pin.OUT)
     #self.csn.on() # detach SD card from SPI bus
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
 
   def init_pinout_sd(self):
-    self.gpio_csn  = const(13) # FIXME
+    #self.gpio_csn  = const(13) # FIXME
     self.gpio_sck  = const(14)
     self.gpio_mosi = const(15)
     self.gpio_miso = const(2)
@@ -55,7 +52,3 @@ class disk2:
     self.hwspi.write(self.trackbuf)
     self.led.off()
 
-  def run(self, n=10):
-    for i in range(n):
-      sleep_ms(100)
-      print("%d, track=%d, byte=%02X" % (i, self.track, self.byte))
