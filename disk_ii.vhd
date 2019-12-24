@@ -60,13 +60,23 @@
 --
 -- This corresponds to dividing the 2 MHz signal by 64 to get the byte clock
 --
+-- debug:
+-- press RESET btn
+-- ]CALL -151
+-- *C0EC -- read floppy byte
+-- *C0E9 -- start floppy motor
+-- *C0E8 -- stop floppy motor
+--
 -------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity disk_ii is  
+entity disk_ii is
+  generic (
+    C_track_len    : natural := 6656    -- bytes
+  );
   port (
     CLK_14M        : in std_logic;
     CLK_2M         : in std_logic;   
@@ -102,7 +112,7 @@ architecture rtl of disk_ii is
   signal phase : unsigned(7 downto 0);  -- 0 - 139
 
   -- Storage for one track worth of data in "nibblized" form
-  type track_ram is array(0 to 6655) of unsigned(7 downto 0);
+  type track_ram is array(0 to C_track_len-1) of unsigned(7 downto 0);
   -- Double-ported RAM for holding a track
   signal track_memory : track_ram;
   signal ram_do : unsigned(7 downto 0);
@@ -113,13 +123,27 @@ architecture rtl of disk_ii is
   -- being read into the shift register, which indicates the data is
   -- not yet ready.
   signal track_byte_addr : unsigned(14 downto 0);
+  signal byte_delay : unsigned(5 downto 0);
   signal read_disk : std_logic;         -- When C08C accessed
-
+  signal prev_CLK_2M : std_logic;
+  signal rising_edge_CLK_2M : boolean;
 begin
 
-  interpret_io : process (CLK_2M)
+  P_edge_detect_CLK_2M : process(CLK_14M)
   begin
-    if rising_edge(CLK_2M) then
+    if rising_edge(CLK_14M) then
+      if CLK_2M = '1' and prev_CLK_2M = '0' then
+        rising_edge_CLK_2M <= true;
+      else
+        rising_edge_CLK_2M <= false;
+      end if;
+      prev_clk_2M <= CLK_2M;
+    end if;
+  end process;
+
+  interpret_io : process (CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
       if reset = '1' then
         motor_phase <= (others => '0');
         drive_on <= '0';
@@ -127,7 +151,7 @@ begin
         q6 <= '0';
         q7 <= '0';
       else
-        if PRE_PHASE_ZERO = '1' and DEVICE_SELECT = '1' then
+        if rising_edge_CLK_2M and PRE_PHASE_ZERO = '1' and DEVICE_SELECT = '1' then
           if A(3) = '0' then                      -- C080 - C087
             motor_phase(TO_INTEGER(A(2 downto 1))) <= A(0);
           else
@@ -250,23 +274,26 @@ begin
   end process;
 
   -- Go to the next byte when the disk is accessed or if the counter times out
-  read_head : process (CLK_2M)
-  variable byte_delay : unsigned(5 downto 0);  -- Accounts for disk spin rate
+  read_head : process (CLK_14M)
   begin
-    if rising_edge(CLK_2M) then
+    if rising_edge(CLK_14M) then
       if reset = '1' then
         track_byte_addr <= (others => '0');
-        byte_delay := (others => '0');
+        byte_delay <= (others => '0');
       else
-        byte_delay := byte_delay - 1;
-        if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then
-          byte_delay := (others => '0');
-          if track_byte_addr = X"33FE" then
+        if rising_edge_CLK_2M then
+        -- if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then -- original
+        if (read_disk = '1' and PRE_PHASE_ZERO = '1') then -- debug
+          byte_delay <= (others => '0');
+          if track_byte_addr = to_unsigned(C_track_len*2-1, track_byte_addr'length) then
             track_byte_addr <= (others => '0');
           else
             track_byte_addr <= track_byte_addr + 1;
           end if;
+        else
+          byte_delay <= byte_delay - 1;
         end if;
+        end if; -- rising_edge_CLK_2M
       end if;
     end if;
   end process;
@@ -280,7 +307,8 @@ begin
                '0';  -- C08C
 
   D_OUT <= rom_dout when IO_SELECT = '1' else
-           ram_do when read_disk = '1' and track_byte_addr(0) = '0' else
+           ram_do when read_disk = '1' and track_byte_addr(0) = '1' else -- original
+           --ram_do when read_disk = '1' else -- debug
            (others => '0');
 
   track_addr <= track_byte_addr(14 downto 1);

@@ -28,13 +28,12 @@ port
   ftdi_txden: inout std_logic;
 
   -- UART1 (WiFi serial)
-  wifi_rxd: out   std_logic := '1';
+  wifi_rxd: out   std_logic;
   wifi_txd: in    std_logic;
   -- WiFi additional signaling
   wifi_en: inout  std_logic := 'Z'; -- '0' will disable wifi by default
   wifi_gpio0: inout std_logic;
-  wifi_gpio2: inout std_logic;
-  wifi_gpio15: inout std_logic;
+  wifi_gpio5: inout std_logic;
   wifi_gpio16: inout std_logic;
   wifi_gpio17: inout std_logic;
 
@@ -140,9 +139,11 @@ begin
   );
 
   wifi_en <= '1';
-  wifi_gpio0 <= btn(0);
-  S_reset <= not btn(0);
+  wifi_gpio0 <= '1';
+  wifi_rxd <= ftdi_txd;
+  ftdi_rxd <= wifi_txd;
 
+  S_reset <= not btn(0);
   S_enable <= not btn(1); -- btn1 to hold
 
   oled_inst: entity oled_hex_decoder
@@ -268,8 +269,8 @@ begin
   end generate; -- apple2_disk
   
   G_not_apple2_disk: if not C_apple2_disk generate
-  track(4 downto 0) <= btn(6 downto 2);
-  end generate; -- apple2_disk
+  TRACK(4 downto 0) <= btn(6 downto 2);
+  end generate; -- not apple2_disk, tracks selected by BTNs
 
   G_apple2_sdcard: if false generate
   sdcard_interface : entity work.spi_controller port map (
@@ -294,6 +295,9 @@ begin
   sd_d(2) <= 'Z';
   S_oled(45 downto 32) <= TRACK_RAM_ADDR;
   S_oled(55 downto 48) <= TRACK_RAM_DI;
+  -- selects disk image
+  --image <= "0000000" & SW(2 downto 0);
+  image <= "000000" & x"0";
   end generate; -- apple2_sdcard
 
   G_disk2_spi_slave: if true generate
@@ -303,13 +307,13 @@ begin
     CLK_14M        => CLK_14M,
     RESET          => RESET,
 
-    CS_N           => wifi_gpio16,
+    CS             => wifi_gpio5,
     SCLK           => sd_clk,  -- wifi_gpio14
     MOSI           => sd_cmd,  -- wifi_gpio15
     MISO           => sd_d(0), -- wifi_gpio2
 
     track          => TRACK,
-    track_change_n => wifi_gpio17,
+    track_change   => wifi_gpio17,
 
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
@@ -318,13 +322,11 @@ begin
   sd_d(3) <= 'Z'; -- CS_N
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
-  S_oled(45 downto 32) <= TRACK_RAM_ADDR;
+  --S_oled(45 downto 32) <= TRACK_RAM_ADDR;
+  S_oled(45 downto 32) <= TRACK_ADDR;
   S_oled(55 downto 48) <= TRACK_RAM_DI;
   end generate; -- disk2_spi_slave
   
-  -- selects disk image
-  --image <= "0000000" & SW(2 downto 0);
-  image <= "000000" & x"0";
 
   ram_64K: entity work.bram_true2p_1clk
   generic map
