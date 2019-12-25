@@ -1,27 +1,26 @@
 # micropython ESP32
-# DISK ][ server, read only
+# DISK ][ NIB disk image server, read only
 
 # AUTHOR=EMARD
 # LICENSE=BSD
 
-# TODO:
 # this code is SPI master to FPGA SPI slave
 # FPGA sends pulse to GPIO after it changes track number
-# track_len = 6656 bytes
 # on GPIO pin interrupt from FPGA:
 # track_number = SPI_read_byte
+# track_len = 6656 bytes
 # seek(track_number*track_len)
 # buffer = read(track_len)
 # SPI_write(buffer)
 # FPGA SPI slave reads track in BRAM buffer
 
-#from time import ticks_ms, sleep_ms
-from machine import SPI, Pin, SDCard # , enable_irq, disable_irq
+#import ecp5
+from machine import SPI, Pin
 from micropython import const
 
 class disk2:
-  def __init__(self):
-    self.diskfilename = "disk2.ndo"
+  def __init__(self, file_nib):
+    self.diskfilename = file_nib
     print("DISK ][ %s" % self.diskfilename)
     self.tracklen = const(6656)
     self.trackbuf = bytearray(self.tracklen)
@@ -67,6 +66,10 @@ class disk2:
         #  print("%02X " % self.trackbuf[i], end="")
         #print("(track %d)" % track)
 
-d=disk2()
-d.run()
+# debug to manually write data and
+# check them with *C0EC
 #d.led.on(); d.hwspi.write(bytearray([0xd0,0xb2,0x02,0x59,0x17,0x69,0x91,0x9f]));d.led.off()
+
+#ecp5.prog("apple2.bit.gz")
+d=disk2("disk2.nib")
+d.run()
