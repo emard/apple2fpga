@@ -60,12 +60,44 @@
 --
 -- This corresponds to dividing the 2 MHz signal by 64 to get the byte clock
 --
+-- EMARD fix: proper use of 2MHz LUT-generated clock domain
+--
 -- debug:
--- press RESET btn
--- ]CALL -151
--- *C0EC -- read floppy byte
--- *C0E9 -- start floppy motor
--- *C0E8 -- stop floppy motor
+-- Disable disk rotation "byte_delay" by C_disk_hold=true, we need
+-- floppy disk to hold each byte until it is manualy read.
+-- Prepare random disk image for disk2.py content server:
+-- dd if=/dev/urandom of=disk2.nib bs=6656 count=35
+-- >>> import disk2.py
+---DISK ][ disk2.nib
+-- display content of the track 17
+-- dd if=disk2.nib bs=6656 count=1 skip=17 | hexdump -C | less
+-- 00000000  d0 b2 02 59 17 69 91 9f  82 d9 55 84 26 ca 23 bb
+-- Upload APPLE ][ bitstream. It will keep trying to boot random image.
+-- Press RESET btn to get "]ˇ prompt and it will jump to track 17 = 0x11.
+-- Let's check is emulator reading the same content from disk2.nib:
+-- ]CALL -151 -- to enter monitor mode with "*" prompt
+-- *C0EC -- every second C0EC will read floppy byte, alternating with 00
+-- *C0EC
+-- C0EC- D0
+-- *C0EC
+-- C0EC- 00
+-- *C0EC
+-- C0EC- B2
+-- *C0EC
+-- C0EC- 00
+-- *C0EC
+-- C0EC- 02
+-- *C0EC
+-- C0EC- 59
+-- *C0EC
+-- C0EC- 00
+-- *C0EC
+-- C0EC- 17
+-- *C0EC
+-- seems ok, continue checking at least 32 bytes to be sure.
+-- to celebrate, blink floppy LED few times :)
+-- *C0E9 -- start floppy motor (LED should turn ON)
+-- *C0E8 -- stop floppy motor (LED should turn OFF)
 --
 -------------------------------------------------------------------------------
 
@@ -75,6 +107,7 @@ use ieee.numeric_std.all;
 
 entity disk_ii is
   generic (
+    C_disk_hold    : boolean := false;  -- false:normal byte read timeout, true:hold byte for manual read
     C_track_len    : natural := 6656    -- bytes
   );
   port (
@@ -279,14 +312,13 @@ begin
     if rising_edge(CLK_14M) then
       if reset = '1' then
         track_byte_addr <= (others => '0');
-        byte_delay <= (others => '0');
+        byte_delay <= (others => '1');
       else
         if rising_edge_CLK_2M then
-        -- if (read_disk = '1' and PRE_PHASE_ZERO = '1') or byte_delay = 0 then -- original
-        if (read_disk = '1' and PRE_PHASE_ZERO = '1') then -- debug
-          byte_delay <= (others => '0');
+        if (read_disk = '1' and PRE_PHASE_ZERO = '1') or (byte_delay = 0 and not C_disk_hold) then
+          byte_delay <= (others => '1');
           if track_byte_addr = to_unsigned(C_track_len*2-1, track_byte_addr'length) then
-            track_byte_addr <= (others => '0');
+            track_byte_addr <= (others => '1');
           else
             track_byte_addr <= track_byte_addr + 1;
           end if;
@@ -307,8 +339,7 @@ begin
                '0';  -- C08C
 
   D_OUT <= rom_dout when IO_SELECT = '1' else
-           ram_do when read_disk = '1' and track_byte_addr(0) = '1' else -- original
-           --ram_do when read_disk = '1' else -- debug
+           ram_do when read_disk = '1' and track_byte_addr(0) = '1' else
            (others => '0');
 
   track_addr <= track_byte_addr(14 downto 1);
