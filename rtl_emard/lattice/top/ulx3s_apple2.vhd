@@ -15,7 +15,7 @@ generic
   C_apple2_disk : boolean := true;  -- false BTNs debug to will select track
   -- enable one of
   C_sdcard      : boolean := true;  -- NIB images written to raw SD card
-  C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK [] server
+  C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
 );
 port
 (
