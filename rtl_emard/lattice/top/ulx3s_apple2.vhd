@@ -12,7 +12,10 @@ use ecp5u.components.all;
 entity ulx3s_apple2 is
 generic
 (
-  C_dummy_constant: integer := 0
+  C_apple2_disk : boolean := true;  -- false BTNs debug to will select track
+  -- enable one of
+  C_sdcard      : boolean := true;  -- NIB images written to raw SD card
+  C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK [] server
 );
 port
 (
@@ -33,9 +36,9 @@ port
   -- WiFi additional signaling
   wifi_en: inout  std_logic := 'Z'; -- '0' will disable wifi by default
   wifi_gpio0: inout std_logic;
-  wifi_gpio2: inout std_logic;
-  wifi_gpio15: inout std_logic;
+  wifi_gpio5: inout std_logic;
   wifi_gpio16: inout std_logic;
+  wifi_gpio17: inout std_logic;
 
   -- Onboard blinky
   led: out std_logic_vector(7 downto 0);
@@ -139,9 +142,11 @@ begin
   );
 
   wifi_en <= '1';
-  wifi_gpio0 <= btn(0);
-  S_reset <= not btn(0);
+  wifi_gpio0 <= '1';
+  wifi_rxd <= ftdi_txd;
+  ftdi_rxd <= wifi_txd;
 
+  S_reset <= not btn(0);
   S_enable <= not btn(1); -- btn1 to hold
 
   oled_inst: entity oled_hex_decoder
@@ -243,7 +248,7 @@ begin
   usb_fpga_pu_dp <= '1';
   usb_fpga_pu_dn <= '1';
 
-  G_apple2_disk: if true generate
+  G_yes_apple2_disk: if C_apple2_disk generate
   disk : entity work.disk_ii port map (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
@@ -265,16 +270,20 @@ begin
   led(0) <= D1_ACTIVE;
   led(1) <= D2_ACTIVE;
   end generate; -- apple2_disk
+  
+  G_not_apple2_disk: if not C_apple2_disk generate
+  TRACK(4 downto 0) <= btn(6 downto 2);
+  end generate; -- not apple2_disk, tracks selected by BTNs
 
-  G_apple2_sdcard: if true generate
+  G_apple2_sdcard: if C_sdcard generate
   sdcard_interface : entity work.spi_controller port map (
     CLK_14M        => CLK_14M,
     RESET          => RESET,
 
     CS_N           => sd_d(3),
+    SCLK           => sd_clk,
     MOSI           => sd_cmd,
     MISO           => sd_d(0),
-    SCLK           => sd_clk,
 
     SDHC           => led(2),
 
@@ -289,11 +298,38 @@ begin
   sd_d(2) <= 'Z';
   S_oled(45 downto 32) <= TRACK_RAM_ADDR;
   S_oled(55 downto 48) <= TRACK_RAM_DI;
-  end generate; -- apple2_sdcard
-
   -- selects disk image
   --image <= "0000000" & SW(2 downto 0);
   image <= "000000" & x"0";
+  end generate; -- apple2_sdcard
+
+  G_disk2_spi_slave: if C_esp32 generate
+  E_disk2_spi_slave: entity work.disk2_spi_slave
+  port map
+  (
+    CLK_14M        => CLK_14M,
+    RESET          => RESET,
+
+    CS             => wifi_gpio5,
+    SCLK           => sd_clk,  -- wifi_gpio14
+    MOSI           => sd_cmd,  -- wifi_gpio15
+    MISO           => sd_d(0), -- wifi_gpio2
+
+    track          => TRACK,
+    track_change   => wifi_gpio17,
+
+    ram_write_addr => TRACK_RAM_ADDR,
+    ram_di         => TRACK_RAM_DI,
+    ram_we         => TRACK_RAM_WE
+  );
+  sd_d(3) <= 'Z'; -- CS_N
+  sd_d(1) <= 'Z';
+  sd_d(2) <= 'Z';
+  --S_oled(45 downto 32) <= TRACK_RAM_ADDR;
+  S_oled(45 downto 32) <= TRACK_ADDR;
+  S_oled(55 downto 48) <= TRACK_RAM_DI;
+  end generate; -- disk2_spi_slave
+  
 
   ram_64K: entity work.bram_true2p_1clk
   generic map
