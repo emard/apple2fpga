@@ -30,8 +30,6 @@ class disk2:
     self.spi_channel = const(1)
     self.init_pinout_sd()
     self.spi_freq = const(2000000)
-    self.csn = Pin(self.gpio_csn, Pin.OUT)
-    self.csn.on()
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
     self.count = 0
     self.count_prev = 0
@@ -40,7 +38,6 @@ class disk2:
 
   @micropython.viper
   def init_pinout_sd(self):
-    self.gpio_csn  = const(16)
     self.gpio_sck  = const(14)
     self.gpio_mosi = const(15)
     self.gpio_miso = const(2)
