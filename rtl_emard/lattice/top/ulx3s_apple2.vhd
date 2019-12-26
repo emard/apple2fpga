@@ -34,7 +34,7 @@ port
   wifi_rxd: out   std_logic;
   wifi_txd: in    std_logic;
   -- WiFi additional signaling
-  wifi_en: inout  std_logic := 'Z'; -- '0' will disable wifi by default
+  wifi_en: inout  std_logic; -- '0' will disable wifi by default
   wifi_gpio0: inout std_logic;
   wifi_gpio5: inout std_logic;
   wifi_gpio16: inout std_logic;
@@ -47,7 +47,7 @@ port
   oled_csn, oled_clk, oled_mosi, oled_dc, oled_resn: out std_logic;
 
   -- GPIO (some are shared with wifi and adc)
-  gp, gn: inout std_logic_vector(27 downto 0) := (others => 'Z');
+  gp, gn: inout std_logic_vector(27 downto 0);
 
   -- FPGA direct USB connector
   usb_fpga_bd_dp, usb_fpga_bd_dn: inout std_logic;
@@ -66,9 +66,8 @@ port
   --flash_csn    : out     std_logic;
 
   -- SD card (SPI1)
-  sd_d: inout std_logic_vector(3 downto 0) := (others => 'Z');
-  sd_clk, sd_cmd: inout std_logic := 'Z';
-  sd_cdn, sd_wp: inout std_logic := 'Z'
+  sd_d: inout std_logic_vector(3 downto 0);
+  sd_clk, sd_cmd: inout std_logic
 );
 end;
 
