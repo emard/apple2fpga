@@ -50,7 +50,7 @@ port
   gp, gn: inout std_logic_vector(27 downto 0) := (others => 'Z');
 
   -- FPGA direct USB connector
-  usb_fpga_dp, usb_fpga_dn: inout std_logic;
+  usb_fpga_bd_dp, usb_fpga_bd_dn: inout std_logic;
   usb_fpga_pu_dp, usb_fpga_pu_dn: out std_logic;
 
   -- SHUTDOWN: logic '1' here will shutdown power on PCB >= v1.7.5
@@ -238,8 +238,8 @@ begin
   VGA_SYNC <= '0';
 
   keyboard : entity work.keyboard port map (
-    PS2_Clk  => usb_fpga_dp,
-    PS2_Data => usb_fpga_dn,
+    PS2_Clk  => usb_fpga_bd_dp,
+    PS2_Data => usb_fpga_bd_dn,
     CLK_14M  => CLK_14M,
     reset    => reset,
     read     => read_key,
