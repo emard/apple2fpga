@@ -63,8 +63,8 @@ architecture struct of ffmlfe5_apple2 is
   alias ps2b_clk : std_logic is fioa(3);
   alias ps2b_data : std_logic is fioa(1);
 
-  alias DAC_L: std_logic is fioa(2);
-  alias DAC_R: std_logic is fioa(0);
+  alias audio_l: std_logic is fioa(2);
+  alias audio_r: std_logic is fioa(0);
 
   alias ps2led_green: std_logic is fioa(5); -- green LED
   alias ps2led_red: std_logic is fioa(7); -- red LED
@@ -113,6 +113,9 @@ begin
     btn => "0000001", -- btn(0) is reset_n
 
     led(0) => ps2led_red, -- floppy "IN USE>" LED
+
+    audio_l(0) => audio_l,
+    audio_r(0) => audio_r,
 
     -- PS/2 keyboard
     usb_fpga_bd_dp => ps2a_clk,
