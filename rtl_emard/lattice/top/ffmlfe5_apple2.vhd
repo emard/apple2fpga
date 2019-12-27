@@ -1,5 +1,5 @@
 ----------------------------
--- FFM LFE5 Top level for MINIMIG
+-- FFM LFE5 Top level for apple2fpga
 -- http://github.com/emard
 ----------------------------
 
