@@ -46,6 +46,9 @@ port
   sw: in std_logic_vector(0 to 3);
   oled_csn, oled_clk, oled_mosi, oled_dc, oled_resn: out std_logic;
 
+  -- Audio
+  audio_l, audio_r, audio_v: out std_logic_vector(3 downto 0);
+
   -- GPIO (some are shared with wifi and adc)
   gp, gn: inout std_logic_vector(27 downto 0);
 
@@ -218,6 +221,11 @@ begin
     pcDebugOut     => cpu_pc,
     speaker        => speaker
     );
+  audio_l(0) <= speaker;
+  audio_l(3 downto 1) <= (others => '0');
+  audio_r(0) <= speaker;
+  audio_r(3 downto 1) <= (others => '0');
+  audio_v(3 downto 0) <= (others => '0');
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
