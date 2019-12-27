@@ -107,6 +107,7 @@ architecture Behavioral of ulx3s_apple2 is
   signal VIDEO, HBL, VBL, LD194 : std_logic;
   signal COLOR_LINE : std_logic;
   signal COLOR_LINE_CONTROL : std_logic;
+  signal PDL_STROBE : std_logic;
   signal GAMEPORT : std_logic_vector(7 downto 0);
   signal cpu_pc : unsigned(15 downto 0);
 
@@ -191,8 +192,7 @@ begin
   end process;
 
   -- Paddle buttons
-  GAMEPORT <=  "0000" & (not btn(3 downto 1)) & "0";
-
+ 
   COLOR_LINE_CONTROL <= COLOR_LINE and SW(3);  -- Color or B&W mode
 
   core : entity work.apple2 port map (
@@ -215,6 +215,7 @@ begin
     K              => K,
     read_key       => read_key,
     AN             => led(7 downto 4),
+    PDL_STROBE     => PDL_STROBE,
     GAMEPORT       => GAMEPORT,
     IO_SELECT      => IO_SELECT,
     DEVICE_SELECT  => DEVICE_SELECT,
@@ -226,6 +227,18 @@ begin
   audio_r(0) <= speaker;
   audio_r(3 downto 1) <= (others => '0');
   audio_v(3 downto 0) <= (others => '0');
+  
+  paddle : entity work.paddle
+  port map(
+    CLK_14M    => CLK_14M,
+    PDL0       => x"7E",
+    PDL1       => x"7F",
+    PDL2       => x"80",
+    PDL3       => x"81",
+    PDL_STROBE => PDL_STROBE,
+    GAMEPORT   => GAMEPORT(7 downto 4)
+  );
+  GAMEPORT(3 downto 0) <= (not btn(3 downto 1)) & "0";
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,

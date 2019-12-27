@@ -40,12 +40,13 @@ VHDL_FILES = \
   ../../../rtl_emard/dvi/vga2dvid.vhd \
   ../../../rtl_emard/dvi/tmds_encoder.vhd \
   ../../../apple2.vhd \
+  ../../../timing_generator.vhd \
   ../../../main_roms.vhd \
   ../../../character_rom.vhd \
   ../../../cpu6502.vhd \
   ../../../keyboard.vhd \
   ../../../PS2_Ctrl.vhd \
-  ../../../timing_generator.vhd \
+  ../../../paddle.vhd \
   ../../../vga_controller.vhd \
   ../../../video_generator.vhd \
   ../../../disk_ii.vhd \
