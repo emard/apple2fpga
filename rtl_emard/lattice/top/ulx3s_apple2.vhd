@@ -231,10 +231,10 @@ begin
   paddle : entity work.paddle
   port map(
     CLK_14M    => CLK_14M,
-    PDL0       => x"7E",
-    PDL1       => x"7F",
-    PDL2       => x"80",
-    PDL3       => x"81",
+    PDL0       => x"00",
+    PDL1       => x"10",
+    PDL2       => x"F0",
+    PDL3       => x"FF",
     PDL_STROBE => PDL_STROBE,
     GAMEPORT   => GAMEPORT(7 downto 4)
   );
