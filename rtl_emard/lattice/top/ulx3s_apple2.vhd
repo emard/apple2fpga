@@ -3,8 +3,10 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
--- use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use ieee.numeric_std.all;
+
+-- package for usb joystick report decoded structure
+use work.report_decoded_pack.all;
 
 library ecp5u;
 use ecp5u.components.all;
@@ -13,6 +15,14 @@ entity ulx3s_apple2 is
 generic
 (
   C_apple2_disk : boolean := true;  -- false BTNs debug to will select track
+  -- PS/2 keyboard at (enable one of):
+  C_kbd_us2: boolean := true;  -- onboard micro USB with OTG adapter
+  C_kbd_us3: boolean := false; -- PMOD US3 at GP,GN 25,22,21
+  C_kbd_us4: boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  -- USB Joystick at (enable one of):
+  C_joy_us2: boolean := false; -- onboard micro USB with OTG adapter
+  C_joy_us3: boolean := true;  -- PMOD US3 at GP,GN 25,22,21
+  C_joy_us4: boolean := false; -- PMOD US4 at GP,GN 24,23,20
   -- enable one of
   C_sdcard      : boolean := true;  -- NIB images written to raw SD card
   C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
@@ -53,6 +63,7 @@ port
   gp, gn: inout std_logic_vector(27 downto 0);
 
   -- FPGA direct USB connector
+  usb_fpga_dp, usb_fpga_dn: in std_logic;
   usb_fpga_bd_dp, usb_fpga_bd_dn: inout std_logic;
   usb_fpga_pu_dp, usb_fpga_pu_dn: out std_logic;
 
@@ -133,15 +144,55 @@ architecture Behavioral of ulx3s_apple2 is
   signal BRAM_WE : std_logic;
   signal BRAM_DQ : std_logic_vector(7 downto 0);
   signal BRAM_ADDR : unsigned(15 downto 0);
+  
+  -- USB
+  signal clk_usb, clk_6M: std_logic;
+  signal S_hid_report: std_logic_vector(63 downto 0);
+  signal S_hid_report_valid: std_logic;
+  signal S_hid_report_decoded: T_report_decoded;
+
+  -- PMOD with US3 and US4
+  -- ULX3S pins up and flat cable: swap GP/GN and invert differential input
+  -- ULX3S direct or pins down and flat cable: don't swap GP/GN, normal differential input
+
+  alias us3_fpga_bd_dp: std_logic is gn(25);
+  alias us3_fpga_bd_dn: std_logic is gp(25);
+
+  alias us4_fpga_bd_dp: std_logic is gn(24);
+  alias us4_fpga_bd_dn: std_logic is gp(24);
+  
+  alias us4_fpga_pu_dp: std_logic is gn(23);
+  alias us4_fpga_pu_dn: std_logic is gp(23);
+  
+  alias us3_fpga_pu_dp: std_logic is gn(22);
+  alias us3_fpga_pu_dn: std_logic is gp(22);
+
+  alias us3_fpga_n_dp: std_logic is gp(21); -- flat cable
+  signal us3_fpga_dp: std_logic; -- flat cable
+  --alias us3_fpga_dp: std_logic is gp(21); -- direct
+
+  alias us4_fpga_n_dp: std_logic is gp(20); -- flat cable
+  signal us4_fpga_dp: std_logic; -- flat cable
+  --alias us4_fpga_dp: std_logic is gp(20); -- direct
 
 begin
-  clk_pll: entity work.clk_25_140_28_14
+  clk_apple2: entity work.clk_25_140_28_14
   port map
   (
       CLKI        =>  clk_25mhz,
       CLKOP       =>  clk_140M,  -- 143.75  MHz
       CLKOS       =>  clk_28M,   --  28.75  MHz
       CLKOS2      =>  clk_14M    --  14.375 MHz
+  );
+  
+  clk_usb: entity work.clk_25_125_68_6_25
+  port map
+  (
+      CLKI        =>  clk_25mhz,
+      CLKOP       =>  open,
+      CLKOS       =>  open,
+      CLKOS2      =>  clk_6M,
+      CLKOS3      =>  open
   );
 
   wifi_en <= '1';
@@ -227,18 +278,96 @@ begin
   audio_r(0) <= speaker;
   audio_r(3 downto 1) <= (others => '0');
   audio_v(3 downto 0) <= (others => '0');
+
+  clk_usb <= clk_6M; -- 48MHz full speed, 6MHz low speed
+
+  G_us2: if C_joy_us2 generate
+  usb_fpga_pu_dp <= '0';
+  usb_fpga_pu_dn <= '0';
+  us2_hid_host_inst: entity usbh_host_hid
+  generic map
+  (
+    C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
+  )
+  port map
+  (
+    clk => clk_usb, -- 6 MHz for low-speed USB1.0 device or 48 MHz for full-speed USB1.1 device
+    bus_reset => '0',
+    usb_dif => usb_fpga_dp,
+    usb_dp  => usb_fpga_bd_dp,
+    usb_dn  => usb_fpga_bd_dn,
+    hid_report => S_hid_report,
+    hid_valid => S_hid_report_valid
+  );
+  end generate;
   
+  G_us3: if C_joy_us3 generate
+  us3_fpga_pu_dp <= '0';
+  us3_fpga_pu_dn <= '0';
+  us3_fpga_dp <= not us3_fpga_n_dp; -- flat cable
+  us3_hid_host_inst: entity usbh_host_hid
+  generic map
+  (
+    C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
+  )
+  port map
+  (
+    clk => clk_usb, -- 6 MHz for low-speed USB1.0 device or 48 MHz for full-speed USB1.1 device
+    bus_reset => '0',
+    usb_dif => us3_fpga_dp,
+    usb_dp  => us3_fpga_bd_dp,
+    usb_dn  => us3_fpga_bd_dn,
+    hid_report => S_hid_report,
+    hid_valid => S_hid_report_valid
+  );
+  end generate;
+
+  G_us4: if C_joy_us4 generate
+  us4_fpga_pu_dp <= '0';
+  us4_fpga_pu_dn <= '0';
+  us4_fpga_dp <= not us4_fpga_n_dp; -- flat cable
+  us4_hid_host_inst: entity usbh_host_hid
+  generic map
+  (
+    C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
+  )
+  port map
+  (
+    clk => clk_usb, -- 6 MHz for low-speed USB1.0 device or 48 MHz for full-speed USB1.1 device
+    bus_reset => '0',
+    usb_dif => us4_fpga_dp,
+    usb_dp  => us4_fpga_bd_dp,
+    usb_dn  => us4_fpga_bd_dn,
+    hid_report => S_hid_report,
+    hid_valid => S_hid_report_valid
+  );
+  end generate;
+
+  usbhid_report_decoder: entity usbhid_report_decoder
+  port map
+  (
+    clk => clk_usb,
+    hid_report => S_hid_report,
+    hid_valid => S_hid_report_valid,
+    decoded => S_hid_report_decoded
+  );
+
   paddle : entity work.paddle
   port map(
     CLK_14M    => CLK_14M,
-    PDL0       => x"00",
-    PDL1       => x"10",
-    PDL2       => x"F0",
-    PDL3       => x"FF",
+    PDL0       => S_hid_report_decoded.lstick_x,
+    PDL1       => S_hid_report_decoded.lstick_y,
+    PDL2       => S_hid_report_decoded.rstick_x,
+    PDL3       => S_hid_report_decoded.rstick_y,
     PDL_STROBE => PDL_STROBE,
     GAMEPORT   => GAMEPORT(7 downto 4)
   );
-  GAMEPORT(3 downto 0) <= (not btn(3 downto 1)) & "0";
+  GAMEPORT(3 downto 0) <= (not
+  (
+    S_hid_report_decoded.btn_rbumper &
+    S_hid_report_decoded.btn_ltrigger &
+    S_hid_report_decoded.btn_rtrigger)
+  ) & "0"; -- last 0 is for cassette (not used)
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
@@ -257,6 +386,7 @@ begin
     );
   VGA_SYNC <= '0';
 
+  G_kbd_us2: if C_kbd_us2 generate
   keyboard : entity work.keyboard port map (
     PS2_Clk  => usb_fpga_bd_dp,
     PS2_Data => usb_fpga_bd_dn,
@@ -267,6 +397,33 @@ begin
     );
   usb_fpga_pu_dp <= '1';
   usb_fpga_pu_dn <= '1';
+  end generate;
+
+  G_kbd_us3: if C_kbd_us3 generate
+  keyboard : entity work.keyboard port map (
+    PS2_Clk  => us3_fpga_bd_dp,
+    PS2_Data => us3_fpga_bd_dn,
+    CLK_14M  => CLK_14M,
+    reset    => reset,
+    read     => read_key,
+    K        => K
+    );
+  us3_fpga_pu_dp <= '1';
+  us3_fpga_pu_dn <= '1';
+  end generate;
+
+  G_kbd_us4: if C_kbd_us4 generate
+  keyboard : entity work.keyboard port map (
+    PS2_Clk  => us4_fpga_bd_dp,
+    PS2_Data => us4_fpga_bd_dn,
+    CLK_14M  => CLK_14M,
+    reset    => reset,
+    read     => read_key,
+    K        => K
+    );
+  us4_fpga_pu_dp <= '1';
+  us4_fpga_pu_dn <= '1';
+  end generate;
 
   G_yes_apple2_disk: if C_apple2_disk generate
   disk : entity work.disk_ii port map (

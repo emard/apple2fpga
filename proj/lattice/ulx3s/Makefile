@@ -28,17 +28,24 @@ CONSTRAINTS = ../constraints/ulx3s_v20_segpdi.lpf
 TOP_MODULE = ulx3s_apple2
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
 
-VERILOG_FILES =
-
 VHDL_FILES = \
   $(TOP_MODULE_FILE) \
   ../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
+  ../../../rtl_emard/lattice/ecp5/clocks/clk_25_125_68_6_25.vhd \
   ../../../rtl_emard/oled/oled_hex_decoder.vhd \
   ../../../rtl_emard/oled/oled_init_pack.vhd \
   ../../../rtl_emard/oled/oled_font_pack.vhd \
   ../../../rtl_emard/bram/bram_true2p_1clk.vhd \
   ../../../rtl_emard/dvi/vga2dvid.vhd \
   ../../../rtl_emard/dvi/tmds_encoder.vhd \
+  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_phy.vhd \
+  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_rx_phy.vhd \
+  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_tx_phy.vhd \
+  ../../../rtl_emard/usb/usbhost/usbh_setup_pack.vhd \
+  ../../../rtl_emard/usb/usbhost/usbh_host_hid.vhd \
+  ../../../rtl_emard/usb/usbhost/usbh_sie_vhdl.vhd \
+  ../../../rtl_emard/usb/usbhid/report_decoded_pack_generic.vhd \
+  ../../../rtl_emard/usb/usbhid/usbhid_report_decoder_saitek_joystick.vhd \
   ../../../apple2.vhd \
   ../../../timing_generator.vhd \
   ../../../main_roms.vhd \
@@ -53,6 +60,11 @@ VHDL_FILES = \
   ../../../disk_ii_rom.vhd \
   ../../../spi_controller.vhd \
   ../../../disk2_spi_slave.vhd \
+
+VERILOG_FILES = \
+  ../../../rtl_emard/usb/usbhost/usbh_sie.v \
+  ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
+  ../../../rtl_emard/usb/usbhost/usbh_crc16.v \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
