@@ -127,7 +127,6 @@ begin
   decoded.rstick_right <= '1' when S_rstick_x(7 downto 6) = "11" else '0';
   decoded.rstick_up    <= '1' when S_rstick_y(7 downto 6) = "00" else '0';
   decoded.rstick_down  <= '1' when S_rstick_y(7 downto 6) = "11" else '0';
-  
 
   decoded.analog_ltrigger(7 downto 2) <=     S_analog_trigger;
   decoded.analog_rtrigger(7 downto 2) <= not S_analog_trigger;
