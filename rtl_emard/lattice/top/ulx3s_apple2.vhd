@@ -16,13 +16,13 @@ generic
 (
   C_apple2_disk : boolean := true;  -- false BTNs debug to will select track
   -- PS/2 keyboard at (enable one of):
-  C_kbd_us2: boolean := true;  -- onboard micro USB with OTG adapter
-  C_kbd_us3: boolean := false; -- PMOD US3 at GP,GN 25,22,21
-  C_kbd_us4: boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
+  C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
+  C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
   -- USB Joystick at (enable one of):
-  C_joy_us2: boolean := false; -- onboard micro USB with OTG adapter
-  C_joy_us3: boolean := true;  -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4: boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
+  C_joy_us3     : boolean := true;  -- PMOD US3 at GP,GN 25,22,21
+  C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
   -- enable one of
   C_sdcard      : boolean := true;  -- NIB images written to raw SD card
   C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
@@ -362,12 +362,12 @@ begin
     PDL_STROBE => PDL_STROBE,
     GAMEPORT   => GAMEPORT(7 downto 4)
   );
-  GAMEPORT(3 downto 0) <= (not
+  GAMEPORT(3 downto 0) <=
   (
     S_hid_report_decoded.btn_rbumper &
     S_hid_report_decoded.btn_ltrigger &
-    S_hid_report_decoded.btn_rtrigger)
-  ) & "0"; -- last 0 is for cassette (not used)
+    S_hid_report_decoded.btn_rtrigger
+  ) & "0"; -- last 0 is for cassette (not used, we have floppy)
 
   vga : entity work.vga_controller port map (
     CLK_28M    => CLK_28M,
