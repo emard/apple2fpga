@@ -28,3 +28,8 @@ Some apple2 hints:
     *6<Ctrl-P><ENTER>
     *9DBFG
     ]
+
+Most floppy disk images from [planet emulation](https://www.planetemu.net/machine/apple-ii)
+are in DSK format.
+[online disk image converter at kboohk](http://kboohk.com/dsk2woz/)
+can convert them to NIB format.
