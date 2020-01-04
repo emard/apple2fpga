@@ -14,16 +14,19 @@ use ecp5u.components.all;
 entity ulx3s_apple2 is
 generic
 (
-  C_apple2_disk : boolean := true;  -- false BTNs debug to will select track
+  C_oled        : boolean := true;  -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (sd_clk, sd_cmd)
   -- USB Joystick at (enable one of):
   C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := true;  -- PMOD US3 at GP,GN 25,22,21
   C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  -- enable one of
+  -- if apple ][ disk is used
+  C_apple2_disk : boolean := true;  -- false BTNs debug to select track
+  -- then enable one of
   C_sdcard      : boolean := true;  -- NIB images written to raw SD card
   C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
 );
@@ -71,15 +74,15 @@ port
   shutdown: out std_logic := '0';
 
   -- Digital Video (fake differential outputs)
-  gpdi_dp, gpdi_dn: out std_logic_vector(3 downto 0);
+  gpdi_dp: out std_logic_vector(3 downto 0);
 
-  -- Flash ROM (SPI0)
+  -- Flash ROM
   --flash_miso   : in      std_logic;
   --flash_mosi   : out     std_logic;
   --flash_clk    : out     std_logic;
   --flash_csn    : out     std_logic;
 
-  -- SD card (SPI1)
+  -- SD card
   sd_d: inout std_logic_vector(3 downto 0);
   sd_clk, sd_cmd: inout std_logic
 );
@@ -196,13 +199,14 @@ begin
   );
 
   wifi_en <= '1';
-  wifi_gpio0 <= '1';
+  --wifi_gpio0 <= '1';
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
 
   S_reset <= not btn(0);
   S_enable <= not btn(1); -- btn1 to hold
 
+  G_oled: if C_oled generate
   oled_inst: entity oled_hex_decoder
   generic map
   (
@@ -220,6 +224,7 @@ begin
     spi_dc => oled_dc,
     spi_mosi => oled_mosi
   );
+  end generate;
   
   -- APPLE ][ --
 
@@ -425,6 +430,17 @@ begin
   us4_fpga_pu_dn <= '1';
   end generate;
 
+  G_kbd_esp32: if C_kbd_esp32 generate
+  keyboard : entity work.keyboard port map (
+    PS2_Clk  => sd_clk,
+    PS2_Data => sd_cmd,
+    CLK_14M  => CLK_14M,
+    reset    => reset,
+    read     => read_key,
+    K        => K
+    );
+  end generate;
+
   G_yes_apple2_disk: if C_apple2_disk generate
   disk : entity work.disk_ii port map (
     CLK_14M        => CLK_14M,
@@ -566,13 +582,9 @@ begin
 
   -- vendor specific DDR modules
   -- convert SDR 2-bit input to DDR clocked 1-bit output (single-ended)
-  ddr_clock: ODDRX1F port map (D0=>dvid_clock(0), D1=>dvid_clock(1), Q=>ddr_d(3), SCLK=>clk_pixel_shift, RST=>'0');
-  ddr_red:   ODDRX1F port map (D0=>dvid_red(0),   D1=>dvid_red(1),   Q=>ddr_d(2), SCLK=>clk_pixel_shift, RST=>'0');
-  ddr_green: ODDRX1F port map (D0=>dvid_green(0), D1=>dvid_green(1), Q=>ddr_d(1), SCLK=>clk_pixel_shift, RST=>'0');
-  ddr_blue:  ODDRX1F port map (D0=>dvid_blue(0),  D1=>dvid_blue(1),  Q=>ddr_d(0), SCLK=>clk_pixel_shift, RST=>'0');
-  -- vendor specific modules for differential output
-  gpdi_data_channels: for i in 0 to 3 generate
-    gpdi_diff_data: OLVDS port map (A => ddr_d(i), Z => gpdi_dp(i), ZN => gpdi_dn(i));
-  end generate;
+  ddr_clock: ODDRX1F port map (D0=>dvid_clock(0), D1=>dvid_clock(1), Q=>gpdi_dp(3), SCLK=>clk_pixel_shift, RST=>'0');
+  ddr_red:   ODDRX1F port map (D0=>dvid_red(0),   D1=>dvid_red(1),   Q=>gpdi_dp(2), SCLK=>clk_pixel_shift, RST=>'0');
+  ddr_green: ODDRX1F port map (D0=>dvid_green(0), D1=>dvid_green(1), Q=>gpdi_dp(1), SCLK=>clk_pixel_shift, RST=>'0');
+  ddr_blue:  ODDRX1F port map (D0=>dvid_blue(0),  D1=>dvid_blue(1),  Q=>gpdi_dp(0), SCLK=>clk_pixel_shift, RST=>'0');
 
 end Behavioral;

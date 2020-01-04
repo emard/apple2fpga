@@ -23,7 +23,7 @@ OPENOCD_INTERFACE=$(SCRIPTS)/ft231x.ocd
 #OPENOCD_INTERFACE=$(SCRIPTS)/ft2232.ocd
 
 # ******* design files *******
-CONSTRAINTS = ../constraints/ulx3s_v20_segpdi.lpf
+CONSTRAINTS = ../constraints/ulx3s_v20_difgpdi.lpf
 #TOP_MODULE = ulx3s_apple2
 TOP_MODULE = ulx3s_apple2
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
