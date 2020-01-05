@@ -43,7 +43,15 @@ class disk2:
 
   @micropython.viper
   def irq_handler(self, pin):
-    self.count += const(1)
+#    self.count += const(1)
+        self.led.on()
+        track = self.hwspi.read(1)[0]
+        self.led.off()
+        self.diskfile.seek(self.tracklen * track)
+        self.diskfile.readinto(self.trackbuf)
+        self.led.on()
+        self.hwspi.write(self.trackbuf)
+        self.led.off()
 
   #@micropython.viper
   def run(self):
@@ -69,4 +77,4 @@ class disk2:
 #import ecp5
 #ecp5.prog("apple2.bit.gz")
 d=disk2("disk2.nib")
-d.run()
+#d.run()
