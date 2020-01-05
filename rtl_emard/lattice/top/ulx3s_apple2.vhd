@@ -14,19 +14,19 @@ use ecp5u.components.all;
 entity ulx3s_apple2 is
 generic
 (
-  C_oled        : boolean := true;  -- OLED display HEX debug
+  C_oled        : boolean := false; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (sd_clk, sd_cmd)
-  -- USB Joystick at (enable one of):
+  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
+  -- USB joystick at (enable one of):
   C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := true;  -- PMOD US3 at GP,GN 25,22,21
   C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  -- if apple ][ disk is used
+  -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
-  -- then enable one of
+  -- C_apple2_disk = true, then enable one of
   C_sdcard      : boolean := true;  -- NIB images written to raw SD card
   C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
 );
@@ -89,7 +89,6 @@ port
 end;
 
 architecture Behavioral of ulx3s_apple2 is
-  signal S_reset: std_logic;  
   signal S_oled: std_logic_vector(63 downto 0);
   signal S_enable: std_logic;
 
@@ -136,13 +135,14 @@ architecture Behavioral of ulx3s_apple2 is
 
   signal track : unsigned(5 downto 0);
   signal image : unsigned(9 downto 0);
-  signal trackmsb : unsigned(3 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
   signal TRACK_RAM_ADDR : unsigned(13 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
   signal TRACK_RAM_WE : std_logic;
+
+  signal track_change_req : std_logic := '0';
 
   signal BRAM_WE : std_logic;
   signal BRAM_DQ : std_logic_vector(7 downto 0);
@@ -198,13 +198,12 @@ begin
       CLKOS3      =>  open
   );
 
-  wifi_en <= '1';
+  --wifi_en <= '1';
   --wifi_gpio0 <= '1';
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
 
-  S_reset <= not btn(0);
-  S_enable <= not btn(1); -- btn1 to hold
+  S_enable <= not btn(1); -- BTN1 to hold OLED display
 
   G_oled: if C_oled generate
   oled_inst: entity oled_hex_decoder
@@ -432,8 +431,8 @@ begin
 
   G_kbd_esp32: if C_kbd_esp32 generate
   keyboard : entity work.keyboard port map (
-    PS2_Clk  => sd_clk,
-    PS2_Data => sd_cmd,
+    PS2_Clk  => wifi_gpio16,
+    PS2_Data => wifi_gpio17,
     CLK_14M  => CLK_14M,
     reset    => reset,
     read     => read_key,
@@ -509,7 +508,7 @@ begin
     MISO           => sd_d(0), -- wifi_gpio2
 
     track          => TRACK,
-    track_change   => wifi_gpio17,
+    track_change   => track_change_req,
 
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
@@ -523,6 +522,7 @@ begin
   S_oled(55 downto 48) <= TRACK_RAM_DI;
   end generate; -- disk2_spi_slave
   
+  wifi_gpio0 <= (not track_change_req) and btn(0);
 
   ram_64K: entity work.bram_true2p_1clk
   generic map

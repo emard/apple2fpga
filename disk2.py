@@ -14,7 +14,6 @@
 # SPI_write(buffer)
 # FPGA SPI slave reads track in BRAM buffer
 
-#import ecp5
 from machine import SPI, Pin
 from micropython import const
 
@@ -33,8 +32,8 @@ class disk2:
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
     self.count = 0
     self.count_prev = 0
-    self.track_change = Pin(17, Pin.IN, Pin.PULL_UP)
-    self.track_change.irq(trigger=Pin.IRQ_RISING, handler=self.irq_handler)
+    self.track_change = Pin(0, Pin.IN, Pin.PULL_UP)
+    self.track_change.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
 
   @micropython.viper
   def init_pinout_sd(self):
@@ -67,6 +66,7 @@ class disk2:
 # check them with *C0EC
 #d.led.on(); d.hwspi.write(bytearray([0xd0,0xb2,0x02,0x59,0x17,0x69,0x91,0x9f]));d.led.off()
 
+#import ecp5
 #ecp5.prog("apple2.bit.gz")
 d=disk2("disk2.nib")
 d.run()
