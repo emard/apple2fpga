@@ -37,9 +37,9 @@ class disk2:
 
   @micropython.viper
   def init_pinout_sd(self):
-    self.gpio_sck  = const(14)
-    self.gpio_mosi = const(15)
-    self.gpio_miso = const(2)
+    self.gpio_sck  = const(16)
+    self.gpio_mosi = const(4)
+    self.gpio_miso = const(12)
 
   @micropython.viper
   def irq_handler(self, pin):

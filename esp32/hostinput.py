@@ -45,7 +45,7 @@ if __name__ == '__main__':
     # Usually this should match a part of USB mouse device name
     keyboard_input_name = "TypeM"
     # ps2 network host or ip
-    tcp_host = "192.168.48.118"
+    tcp_host = "192.168.48.128"
     tcp_port = 3252 # use UDP, not serial port
 
     # from http://www.vetra.com/scancodes.html

@@ -16,19 +16,19 @@ generic
 (
   C_oled        : boolean := false; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
-  C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
+  C_kbd_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
+  C_kbd_esp32   : boolean := true;  -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
   -- USB joystick at (enable one of):
-  C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
-  C_joy_us3     : boolean := true;  -- PMOD US3 at GP,GN 25,22,21
+  C_joy_us2     : boolean := true;  -- onboard micro USB with OTG adapter
+  C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
-  C_sdcard      : boolean := true;  -- NIB images written to raw SD card
-  C_esp32       : boolean := false  -- ESP32 disk2.py micropython DISK ][ server
+  C_sdcard      : boolean := false; -- NIB images written to raw SD card
+  C_esp32       : boolean := true   -- ESP32 disk2.py micropython DISK ][ server
 );
 port
 (
@@ -431,8 +431,8 @@ begin
 
   G_kbd_esp32: if C_kbd_esp32 generate
   keyboard : entity work.keyboard port map (
-    PS2_Clk  => wifi_gpio16,
-    PS2_Data => wifi_gpio17,
+    PS2_Clk  => gp(11), -- wifi_gpio26,
+    PS2_Data => gn(11), -- wifi_gpio25,
     CLK_14M  => CLK_14M,
     reset    => reset,
     read     => read_key,
@@ -503,9 +503,9 @@ begin
     RESET          => RESET,
 
     CS             => wifi_gpio5,
-    SCLK           => sd_clk,  -- wifi_gpio14
-    MOSI           => sd_cmd,  -- wifi_gpio15
-    MISO           => sd_d(0), -- wifi_gpio2
+    SCLK           => wifi_gpio16, --              -- sd_clk,   -- wifi_gpio14
+    MOSI           => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
+    MISO           => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
 
     track          => TRACK,
     track_change   => track_change_req,
