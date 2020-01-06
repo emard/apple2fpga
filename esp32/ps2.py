@@ -17,6 +17,8 @@ class ps2:
 
   @micropython.viper
   def init_pinout(self):
+    #self.gpio_ps2_clk  = const(25) # GN11
+    #self.gpio_ps2_data = const(26) # GP11
     self.gpio_ps2_clk  = const(16)
     self.gpio_ps2_data = const(17)
     #self.gpio_ps2_clk  = const(14) # sd_clk
