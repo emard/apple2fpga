@@ -1,5 +1,5 @@
 # micropython ESP32
-# PS/2 wire protocol emulator (keyboard and mouse)
+# PS/2 protocol emulator (keyboard and mouse, transmit-only)
 
 # AUTHOR=EMARD
 # LICENSE=BSD
@@ -10,19 +10,11 @@ from micropython import const
 from uctypes import addressof
 
 class ps2:
-  def __init__(self):
-    self.init_pinout() # communicate using SD card pins when SD is inactive
+  def __init__(self, clk=26, data=25):
+    self.gpio_ps2_clk  = clk
+    self.gpio_ps2_data = data
     self.init_pins()
     self.qdelay = const(14) # quarter-bit delay
-
-  @micropython.viper
-  def init_pinout(self):
-    self.gpio_ps2_clk  = const(26) # gn(11)
-    self.gpio_ps2_data = const(25) # gp(11)
-    #self.gpio_ps2_clk  = const(16)
-    #self.gpio_ps2_data = const(17)
-    #self.gpio_ps2_clk  = const(14) # sd_clk
-    #self.gpio_ps2_data = const(15) # sd_cmd
 
   def init_pins(self):
     self.ps2_clk  = Pin(self.gpio_ps2_clk,  Pin.OPEN_DRAIN, Pin.PULL_UP)

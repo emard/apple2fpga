@@ -43,14 +43,11 @@ class PS2_client:
 
             data = cl.recv(32)
 
-            #if len(data) <= 0:
-            #    # No data, close
-            #    # This part is NOT CLEAN; there is still a chance that a
-            #    # closing data connection will be signalled as closing
-            #    # command connection
-            #    log_msg(1, "*** No data, assume QUIT")
-            #    close_client(cl)
-            #    return
+            if len(data) <= 0:
+                # No data, close
+                log_msg(1, "*** No data, assume QUIT")
+                close_client(cl)
+                return
 
             if client_busy:  # check if another client is busy
                 #cl.sendall("400 Device busy.\r\n")  # tell so the remote client
