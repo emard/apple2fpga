@@ -1,6 +1,10 @@
 # AUTHOR=EMARD
 # LICENSE=BSD
 
+# PS/2 receiver converts from TCP to PS/2
+# use linux_keyboard.py or pygame_mouse.py on host side
+# edit ps2port (see below)
+
 import socket
 import network
 import uos
@@ -8,6 +12,15 @@ import gc
 from time import sleep_ms, localtime
 from micropython import alloc_emergency_exception_buf
 import ps2
+
+# keyboard
+ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=50000,n=0)
+
+# 3-byte mouse (PS/2 legacy, no wheel)
+#ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=0,n=3,n_us=1000)
+
+# 4-byte mouse (PS/2 with wheel)
+#ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=0,n=4,n_us=1000)
 
 # constant definitions
 _SO_REGISTER_HANDLER = const(20)
@@ -118,7 +131,6 @@ def start(port=3252, verbose=0, splash=True):
     global client_busy
     global ps2port
     
-    ps2port=ps2.ps2()
 
     alloc_emergency_exception_buf(100)
     verbose_l = verbose
