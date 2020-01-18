@@ -142,7 +142,6 @@ architecture Behavioral of ulx3s_apple2 is
   signal speaker : std_logic;
 
   signal track : unsigned(5 downto 0);
-  signal R_track : unsigned(5 downto 0);
   signal image : unsigned(9 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
@@ -150,8 +149,6 @@ architecture Behavioral of ulx3s_apple2 is
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
   signal TRACK_RAM_WE : std_logic;
-
-  signal track_change_req : std_logic := '0';
 
   signal BRAM_WE : std_logic;
   signal BRAM_DQ : std_logic_vector(7 downto 0);
@@ -517,7 +514,7 @@ begin
     MISO           => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
 
     track          => TRACK,
-    track_change   => track_change_req,
+    --track_change   => track_change_req,
 
     ram_write_addr => TRACK_RAM_ADDR,
     ram_di         => TRACK_RAM_DI,
@@ -533,9 +530,13 @@ begin
 
   G_disk2_spi_slave: if C_esp32 generate
   B_disk2_spi_slave: block
-    signal spi_wr: std_logic;
+    signal spi_rd, spi_wr: std_logic;
     signal spi_addr: std_logic_vector(15 downto 0);
-    signal spi_data_out: std_logic_vector(7 downto 0);
+    signal spi_data_out, spi_data_in: std_logic_vector(7 downto 0);
+    signal R_btn: std_logic_vector(btn'range);
+    signal R_track : unsigned(track'range);
+    signal R_irq: std_logic_vector(1 downto 0); -- interrupt request register
+    signal R_track_irq, R_btn_irq: std_logic;
   begin
   E_disk2_spi_slave: entity work.spirw_slave
   port map
@@ -547,16 +548,18 @@ begin
     mosi                => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
     miso                => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
 
-    data_in(7 downto 6) => "00",
-    data_in(5 downto 0) => TRACK,
-
+    rd                  => spi_rd,
+    wr                  => spi_wr,
     addr                => spi_addr,
-    data_out            => spi_data_out,
-    wr                  => spi_wr
+    data_in             => spi_data_in,
+    data_out            => spi_data_out
   );
   TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(15 downto 14) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   track_ram_di <= unsigned(spi_data_out);
+  -- read: 0x0000 track and irq state, 0xFE00 btn state
+  --spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
+  spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
   sd_d(3) <= 'Z'; -- CS_N
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
@@ -564,21 +567,27 @@ begin
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
   S_oled(55 downto 48) <= TRACK_RAM_DI;
   -- generate track change request signal
-  P_track_change_request: process(CLK_14M)
+  P_irq: process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if R_track = track then
-        track_change_req <= '0';
+      if spi_rd = '1' and spi_addr(15 downto 14) = "00" then -- reading track number resets IRQ state
+        R_track_irq <= '0';
+        R_btn_irq <= '0';
       else
-        track_change_req <= '1';
+        if R_track /= track then
+          R_track_irq <= '1';
+        end if;
+        R_track <= track;
+        if R_btn /= btn then
+          R_btn_irq <= '1';
+        end if;
+        R_btn <= btn;
       end if;
-      R_track <= track;
     end if;
   end process;
+  wifi_gpio0 <= not (R_track_irq or R_btn_irq); -- interrupt on falling edge
   end block;
   end generate; -- disk2_spi_slave
-  
-  wifi_gpio0 <= (not track_change_req) and btn(0);
 
   ram_64K: entity work.bram_true2p_1clk
   generic map
