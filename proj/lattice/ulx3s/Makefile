@@ -2,7 +2,7 @@
 PROJECT = apple2
 BOARD = ulx3s
 # 12 25 45 85
-FPGA_SIZE = 85
+FPGA_SIZE = 25
 
 FPGA_PACKAGE = 6bg381c
 # config flash: 1:SPI (standard), 4:QSPI (quad)
@@ -60,8 +60,12 @@ VHDL_FILES = \
   ../../../disk_ii_rom.vhd \
   ../../../spi_controller.vhd \
   ../../../disk2_spi_slave.vhd \
+  ../../../rtl_emard/osd/spi_osd.vhd \
 
 VERILOG_FILES = \
+  ../../../rtl_emard/osd/spi_osd_v.v \
+  ../../../rtl_emard/osd/osd.v \
+  ../../../rtl_emard/osd/spirw_slave.v \
   ../../../rtl_emard/usb/usbhost/usbh_sie.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc16.v \
@@ -70,3 +74,6 @@ SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
 include $(SCRIPTS)/diamond_path.mk
 include $(SCRIPTS)/diamond_main.mk
+
+osd.mem: osd.txt
+	hexdump -n 1280 -v -e '1/1 "%02x " "\n"' $< > $@

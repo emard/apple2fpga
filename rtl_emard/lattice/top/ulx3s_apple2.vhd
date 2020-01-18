@@ -111,6 +111,14 @@ architecture Behavioral of ulx3s_apple2 is
   VGA_G,                                              -- Green[9:0]
   VGA_B : unsigned(9 downto 0);                       -- Blue[9:0]
 
+  -- invert active LOW sync
+  signal vga_hsync, vga_vsync: std_logic;
+  -- after OSD module 
+  signal osd_vga_r, osd_vga_g, osd_vga_b: std_logic_vector(7 downto 0);
+  signal osd_vga_hsync, osd_vga_vsync, osd_vga_blank: std_logic;
+  -- invert CS to get CSN
+  signal spi_csn: std_logic;
+
   signal clk_140M, clk_28M, clk_14M, clk_2M, PRE_PHASE_ZERO: std_logic;
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
   signal ADDR : unsigned(15 downto 0);
@@ -552,7 +560,33 @@ begin
   
   clk_pixel <= CLK_28M;
   clk_pixel_shift <= CLK_140M;
+
   vga_blank <= not vga_nblank;
+  vga_hsync <= not vga_hs;
+  vga_vsync <= not vga_vs;
+  spi_csn <= not wifi_gpio5;
+
+  -- SPI OSD pipeline
+  spi_osd_inst: entity work.spi_osd
+  generic map
+  (
+    c_start_x => 26, c_start_y => 32, -- xy centered
+    c_chars_x => 64, c_chars_y => 20, -- xy size, slightly less than full screen
+    c_init_on => 0, -- 1:OSD initially shown without any SPI init
+    c_char_file => "osd.mem", -- initial OSD content
+    c_font_file => "font_vga.mem"
+  )
+  port map
+  (
+    clk_pixel => clk_pixel, clk_pixel_ena => '1',
+    i_r => std_logic_vector(vga_r(9 downto 2)),
+    i_g => std_logic_vector(vga_g(9 downto 2)),
+    i_b => std_logic_vector(vga_b(9 downto 2)),
+    i_hsync => vga_hsync, i_vsync => vga_vsync, i_blank => vga_blank,
+    i_csn => spi_csn, i_sclk => wifi_gpio16, i_mosi => sd_d(1), o_miso => open,
+    o_r => osd_vga_r, o_g => osd_vga_g, o_b => osd_vga_b,
+    o_hsync => osd_vga_hsync, o_vsync => osd_vga_vsync, o_blank => osd_vga_blank
+  );
 
   vga2dvi_converter: entity work.vga2dvid
   generic map
@@ -565,13 +599,13 @@ begin
       clk_pixel => clk_pixel, -- 28 MHz
       clk_shift => clk_pixel_shift, -- 5*28 MHz
 
-      in_red   => std_logic_vector(vga_r(9 downto 2)),
-      in_green => std_logic_vector(vga_g(9 downto 2)),
-      in_blue  => std_logic_vector(vga_b(9 downto 2)),
+      in_red   => osd_vga_r,
+      in_green => osd_vga_g,
+      in_blue  => osd_vga_b,
 
-      in_hsync => vga_hs,
-      in_vsync => vga_vs,
-      in_blank => vga_blank,
+      in_hsync => osd_vga_hsync,
+      in_vsync => osd_vga_vsync,
+      in_blank => osd_vga_blank,
 
       -- single-ended output ready for differential buffers
       out_red   => dvid_red,
