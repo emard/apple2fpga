@@ -149,7 +149,6 @@ architecture Behavioral of ulx3s_apple2 is
   signal TRACK_RAM_ADDR : unsigned(13 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
-  signal track_ram_di_slv: std_logic_vector(TRACK_RAM_DI'range);
   signal TRACK_RAM_WE : std_logic;
 
   signal track_change_req : std_logic := '0';
@@ -533,6 +532,11 @@ begin
   end generate; -- disk2_spi_slave FALSE
 
   G_disk2_spi_slave: if C_esp32 generate
+  B_disk2_spi_slave: block
+    signal spi_wr: std_logic;
+    signal spi_addr: std_logic_vector(15 downto 0);
+    signal spi_data_out: std_logic_vector(7 downto 0);
+  begin
   E_disk2_spi_slave: entity work.spirw_slave
   port map
   (
@@ -546,11 +550,13 @@ begin
     data_in(7 downto 6) => "00",
     data_in(5 downto 0) => TRACK,
 
-    addr(13 downto 0)   => TRACK_RAM_ADDR,
-    data_out            => TRACK_RAM_DI_slv,
-    wr                  => TRACK_RAM_WE
+    addr                => spi_addr,
+    data_out            => spi_data_out,
+    wr                  => spi_wr
   );
-  track_ram_di <= unsigned(TRACK_RAM_DI_slv);
+  TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(15 downto 14) = "00" else '0'; -- write disk track to 0x0000
+  TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
+  track_ram_di <= unsigned(spi_data_out);
   sd_d(3) <= 'Z'; -- CS_N
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
@@ -569,6 +575,7 @@ begin
       R_track <= track;
     end if;
   end process;
+  end block;
   end generate; -- disk2_spi_slave
   
   wifi_gpio0 <= (not track_change_req) and btn(0);

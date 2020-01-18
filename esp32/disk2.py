@@ -43,21 +43,30 @@ class disk2:
 
   @micropython.viper
   def irq_handler(self, pin):
-        self.led.on()
-        self.hwspi.write(bytearray([1,0,0,0]))
-        track = self.hwspi.read(1)[0]
-        self.led.off()
-        self.diskfile.seek(self.tracklen * track)
-        self.diskfile.readinto(self.trackbuf)
-        self.led.on()
-        self.hwspi.write(bytearray([0,0,0]))
-        self.hwspi.write(self.trackbuf)
-        self.led.off()
+    self.led.on()
+    self.hwspi.write(bytearray([1,0,0,0]))
+    track = self.hwspi.read(1)[0]
+    self.led.off()
+    self.diskfile.seek(self.tracklen * track)
+    self.diskfile.readinto(self.trackbuf)
+    self.led.on()
+    self.hwspi.write(bytearray([0,0,0]))
+    self.hwspi.write(self.trackbuf)
+    self.led.off()
 
-  def osd(self, i):
-        self.led.on()
-        self.hwspi.write(bytearray([0,0xFE,0,i])) # enable OSD
-        self.led.off()
+  def osd(self, a):
+    if len(a) > 0:
+      enable = 1
+    else:
+      enable = 0
+    self.led.on()
+    self.hwspi.write(bytearray([0,0xFE,0,enable])) # enable OSD
+    self.led.off()
+    if enable:
+      self.led.on()
+      self.hwspi.write(bytearray([0,0xF0,0])) # write content
+      self.hwspi.write(bytearray(a)) # write content
+      self.led.off()
 
 # debug to manually write data and
 # check them with *C0EC

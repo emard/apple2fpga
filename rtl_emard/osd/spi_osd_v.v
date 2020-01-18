@@ -51,8 +51,8 @@ module spi_osd_v
     );
     always @(posedge clk_pixel)
     begin
-      if(ram_wr)
-        tile_map[ram_addr] <= ram_di; // write to 0x0000-0x1000 writes chars to OSD
+      if(ram_wr & (ram_addr[15:14] == 2'b11))
+        tile_map[ram_addr] <= ram_di; // write to 0xF000-0xF4FF for OSD
       //ram_do <= tile_map[ram_addr];
     end
 
