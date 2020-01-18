@@ -43,32 +43,21 @@ class disk2:
 
   @micropython.viper
   def irq_handler(self, pin):
-#    self.count += const(1)
         self.led.on()
+        self.hwspi.write(bytearray([1,0,0,0]))
         track = self.hwspi.read(1)[0]
         self.led.off()
         self.diskfile.seek(self.tracklen * track)
         self.diskfile.readinto(self.trackbuf)
         self.led.on()
+        self.hwspi.write(bytearray([0,0,0]))
         self.hwspi.write(self.trackbuf)
         self.led.off()
 
-  #@micropython.viper
-  def run(self):
-    while(True):
-      if self.count != self.count_prev:
+  def osd(self, i):
         self.led.on()
-        track = self.hwspi.read(1)[0]
+        self.hwspi.write(bytearray([0,0xFE,0,i])) # enable OSD
         self.led.off()
-        self.diskfile.seek(self.tracklen * track)
-        self.diskfile.readinto(self.trackbuf)
-        self.led.on()
-        self.hwspi.write(self.trackbuf)
-        self.led.off()
-        self.count_prev = self.count
-        #for i in range(16):
-        #  print("%02X " % self.trackbuf[i], end="")
-        #print("(track %d)" % track)
 
 # debug to manually write data and
 # check them with *C0EC
@@ -76,5 +65,5 @@ class disk2:
 
 #import ecp5
 #ecp5.prog("apple2.bit.gz")
-d=disk2("disk2.nib")
+#d=disk2("disk2.nib")
 #d.run()

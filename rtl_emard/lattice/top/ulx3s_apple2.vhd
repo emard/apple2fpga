@@ -14,7 +14,7 @@ use ecp5u.components.all;
 entity ulx3s_apple2 is
 generic
 (
-  C_oled        : boolean := false; -- OLED display HEX debug
+  C_oled        : boolean := true; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
@@ -142,12 +142,14 @@ architecture Behavioral of ulx3s_apple2 is
   signal speaker : std_logic;
 
   signal track : unsigned(5 downto 0);
+  signal R_track : unsigned(5 downto 0);
   signal image : unsigned(9 downto 0);
   signal D1_ACTIVE, D2_ACTIVE : std_logic;
   signal track_addr : unsigned(13 downto 0);
   signal TRACK_RAM_ADDR : unsigned(13 downto 0);
   signal tra : unsigned(15 downto 0);
   signal TRACK_RAM_DI : unsigned(7 downto 0);
+  signal track_ram_di_slv: std_logic_vector(TRACK_RAM_DI'range);
   signal TRACK_RAM_WE : std_logic;
 
   signal track_change_req : std_logic := '0';
@@ -503,8 +505,8 @@ begin
   image <= "000000" & x"0";
   end generate; -- apple2_sdcard
 
-  G_disk2_spi_slave: if C_esp32 generate
-  E_disk2_spi_slave: entity work.disk2_spi_slave
+  Gx_disk2_spi_slave: if false generate
+  Ex_disk2_spi_slave: entity work.disk2_spi_slave
   port map
   (
     CLK_14M        => CLK_14M,
@@ -528,6 +530,45 @@ begin
   --S_oled(45 downto 32) <= TRACK_RAM_ADDR;
   S_oled(45 downto 32) <= TRACK_ADDR;
   S_oled(55 downto 48) <= TRACK_RAM_DI;
+  end generate; -- disk2_spi_slave FALSE
+
+  G_disk2_spi_slave: if C_esp32 generate
+  E_disk2_spi_slave: entity work.spirw_slave
+  port map
+  (
+    clk                 => CLK_14M,
+
+    csn                 => spi_csn,
+    sclk                => wifi_gpio16, --              -- sd_clk,   -- wifi_gpio14
+    mosi                => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
+    miso                => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
+
+    data_in(7 downto 6) => "00",
+    data_in(5 downto 0) => TRACK,
+
+    addr(13 downto 0)   => TRACK_RAM_ADDR,
+    data_out            => TRACK_RAM_DI_slv,
+    wr                  => TRACK_RAM_WE
+  );
+  track_ram_di <= unsigned(TRACK_RAM_DI_slv);
+  sd_d(3) <= 'Z'; -- CS_N
+  sd_d(1) <= 'Z';
+  sd_d(2) <= 'Z';
+  S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
+  --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
+  S_oled(55 downto 48) <= TRACK_RAM_DI;
+  -- generate track change request signal
+  P_track_change_request: process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      if R_track = track then
+        track_change_req <= '0';
+      else
+        track_change_req <= '1';
+      end if;
+      R_track <= track;
+    end if;
+  end process;
   end generate; -- disk2_spi_slave
   
   wifi_gpio0 <= (not track_change_req) and btn(0);
