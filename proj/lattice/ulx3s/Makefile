@@ -61,11 +61,12 @@ VHDL_FILES = \
   ../../../spi_controller.vhd \
   ../../../disk2_spi_slave.vhd \
   ../../../rtl_emard/osd/spi_osd.vhd \
+  ../../../rtl_emard/osd/spirw_slave.vhd \
 
 VERILOG_FILES = \
   ../../../rtl_emard/osd/spi_osd_v.v \
   ../../../rtl_emard/osd/osd.v \
-  ../../../rtl_emard/osd/spirw_slave.v \
+  ../../../rtl_emard/osd/spirw_slave_v.v \
   ../../../rtl_emard/usb/usbhost/usbh_sie.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc16.v \
