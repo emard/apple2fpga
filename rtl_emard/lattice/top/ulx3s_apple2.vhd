@@ -537,6 +537,7 @@ begin
     signal R_track : unsigned(track'range);
     signal R_irq: std_logic_vector(1 downto 0); -- interrupt request register
     signal R_track_irq, R_btn_irq: std_logic;
+    signal R_spi_rd: std_logic;
   begin
   E_disk2_spi_slave: entity work.spirw_slave
   port map
@@ -558,19 +559,33 @@ begin
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   track_ram_di <= unsigned(spi_data_out);
   -- read: 0x0000 track and irq state, 0xFE00 btn state
+  --spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
   --spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
-  spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
   sd_d(3) <= 'Z'; -- CS_N
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
   S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
   S_oled(55 downto 48) <= TRACK_RAM_DI;
+  P_irqdata: process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      if spi_rd = '1' then
+        case spi_addr(15 downto 14) is
+          when "00" => -- reading track number resets IRQ state
+            spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK);
+          when others =>
+            spi_data_in <= "0" & btn;
+        end case;
+      end if;
+    end if;
+  end process;
   -- generate track change request signal
   P_irq: process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if spi_rd = '1' and spi_addr(15 downto 14) = "00" then -- reading track number resets IRQ state
+      R_spi_rd <= spi_rd;
+      if spi_rd = '0' and R_spi_rd = '1' and spi_addr(15 downto 14) = "00" then -- reading track number resets IRQ state
         R_track_irq <= '0';
         R_btn_irq <= '0';
       else

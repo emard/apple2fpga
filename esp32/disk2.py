@@ -51,15 +51,17 @@ class disk2:
     p = ptr8(addressof(self.spi_result_track_irq))
     self.led.on()
     self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result_track_irq)
-    track = p[4]
-    track &= 0x3F
-    self.led.off()
-    self.diskfile.seek(6656 * track)
-    self.diskfile.readinto(self.trackbuf)
-    self.led.on()
-    self.hwspi.write(self.spi_write_track)
-    self.hwspi.write(self.trackbuf)
-    self.led.off()
+    track_irq = p[4]
+    #if track_irq & 0x40:
+    if True:
+      track = track_irq & 0x3F
+      self.led.off()
+      self.diskfile.seek(6656 * track)
+      self.diskfile.readinto(self.trackbuf)
+      self.led.on()
+      self.hwspi.write(self.spi_write_track)
+      self.hwspi.write(self.trackbuf)
+      self.led.off()
 
   def osd(self, a):
     if len(a) > 0:
