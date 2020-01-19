@@ -515,12 +515,12 @@ begin
     signal spi_rd, spi_wr: std_logic;
     signal spi_addr: std_logic_vector(15 downto 0);
     signal spi_data_out, spi_data_in: std_logic_vector(7 downto 0);
-    signal R_btn: std_logic_vector(btn'range);
+    signal R_btn, R_btn_latch: std_logic_vector(btn'range);
     signal R_track : unsigned(track'range);
     signal R_irq: std_logic_vector(1 downto 0); -- interrupt request register
     signal R_track_irq, R_btn_irq: std_logic;
     signal R_spi_rd: std_logic;
-    signal R_btn_debounce: unsigned(15 downto 0);
+    signal R_btn_debounce: unsigned(19 downto 0); -- 26Hz btn debounce
   begin
   E_disk2_spi_slave: entity work.spirw_slave
   port map
@@ -576,10 +576,11 @@ begin
           R_track_irq <= '1';
         end if;
         R_track <= track;
-        if R_btn /= btn and R_btn_debounce(R_btn_debounce'high) = '1' then
+        R_btn_latch <= btn;
+        if R_btn /= R_btn_latch and R_btn_debounce(R_btn_debounce'high) = '1' and R_btn_irq = '0' then
           R_btn_irq <= '1';
           R_btn_debounce <= (others => '0');
-          R_btn <= btn;
+          R_btn <= R_btn_latch;
         else
           R_btn_debounce <= R_btn_debounce + 1;
         end if;
