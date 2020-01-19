@@ -24,10 +24,10 @@ class disk2:
     print("DISK ][ %s" % self.diskfilename)
     self.trackbuf = bytearray(6656)
     self.spi_read_track_irq = bytearray([1,0,0,0,0])
-    self.spi_result_track_irq = bytearray(5)
+    self.spi_result = bytearray(5)
     self.spi_write_track = bytearray([0,0,0])
     self.spi_enable_osd = bytearray([0,0xFE,0,1])
-    self.spi_write_osd = bytearray([0,0xF0,0])
+    self.spi_write_osd = bytearray([0,0xF0,64])
     self.spi_read_btn = bytearray([1,0xFE,0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
@@ -51,9 +51,9 @@ class disk2:
 
   @micropython.viper
   def irq_handler(self, pin):
-    p = ptr8(addressof(self.spi_result_track_irq))
+    p = ptr8(addressof(self.spi_result))
     self.led.on()
-    self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result_track_irq)
+    self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result)
     self.led.off()
     track_irq = p[4]
     if track_irq & 0x40:
@@ -65,18 +65,24 @@ class disk2:
       self.hwspi.write(self.trackbuf)
       self.led.off()
     if track_irq & 0x80:
-      pena = ptr8(addressof(self.spi_enable_osd))
       self.led.on()
-      self.hwspi.write_readinto(self.spi_read_btn, self.spi_result_track_irq)
+      self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
       self.led.off()
       btn = p[4]
+      pena = ptr8(addressof(self.spi_enable_osd))
       pena[3] = (btn & 2) >> 1
       self.led.on()
       self.hwspi.write(self.spi_enable_osd)
       self.led.off()
+      pr = ptr8(addressof(self.spi_result))
+      pr[0] = 48 + ((btn &  4)>>2)
+      pr[1] = 48 + ((btn &  8)>>3)
+      pr[2] = 48 + ((btn & 16)>>4)
+      pr[3] = 48 + ((btn & 32)>>5)
+      pr[4] = 48 + ((btn & 64)>>6)
       self.led.on()
       self.hwspi.write(self.spi_write_osd)
-      self.hwspi.write(self.spi_result_track_irq)
+      self.hwspi.write(self.spi_result)
       self.led.off()
 
   def osd(self, a):
