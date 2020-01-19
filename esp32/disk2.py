@@ -26,6 +26,9 @@ class disk2:
     self.spi_read_track_irq = bytearray([1,0,0,0,0])
     self.spi_result_track_irq = bytearray(5)
     self.spi_write_track = bytearray([0,0,0])
+    self.spi_enable_osd = bytearray([0,0xFE,0,1])
+    self.spi_write_osd = bytearray([0,0xF0,0])
+    self.spi_read_btn = bytearray([1,0xFE,0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.diskfile = open(self.diskfilename, "rb")
@@ -51,16 +54,29 @@ class disk2:
     p = ptr8(addressof(self.spi_result_track_irq))
     self.led.on()
     self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result_track_irq)
+    self.led.off()
     track_irq = p[4]
-    #if track_irq & 0x40:
-    if True:
+    if track_irq & 0x40:
       track = track_irq & 0x3F
-      self.led.off()
       self.diskfile.seek(6656 * track)
       self.diskfile.readinto(self.trackbuf)
       self.led.on()
       self.hwspi.write(self.spi_write_track)
       self.hwspi.write(self.trackbuf)
+      self.led.off()
+    if track_irq & 0x80:
+      pena = ptr8(addressof(self.spi_enable_osd))
+      self.led.on()
+      self.hwspi.write_readinto(self.spi_read_btn, self.spi_result_track_irq)
+      self.led.off()
+      btn = p[4]
+      pena[3] = (btn & 2) >> 1
+      self.led.on()
+      self.hwspi.write(self.spi_enable_osd)
+      self.led.off()
+      self.led.on()
+      self.hwspi.write(self.spi_write_osd)
+      self.hwspi.write(self.spi_result_track_irq)
       self.led.off()
 
   def osd(self, a):
