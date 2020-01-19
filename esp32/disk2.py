@@ -15,7 +15,7 @@
 # FPGA SPI slave reads track in BRAM buffer
 
 from machine import SPI, Pin
-from micropython import const
+from micropython import const, alloc_emergency_exception_buf
 
 class disk2:
   def __init__(self, file_nib):
@@ -23,6 +23,9 @@ class disk2:
     print("DISK ][ %s" % self.diskfilename)
     self.tracklen = const(6656)
     self.trackbuf = bytearray(self.tracklen)
+    self.spi_read_track_irq = bytearray([1,0,0,0,0])
+    self.spi_result_track_irq = bytearray(5)
+    self.spi_write_track = bytearray([0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.diskfile = open(self.diskfilename, "rb")
@@ -33,7 +36,9 @@ class disk2:
     self.count = 0
     self.count_prev = 0
     self.track_change = Pin(0, Pin.IN, Pin.PULL_UP)
-    self.track_change.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler)
+    alloc_emergency_exception_buf(100)
+    self.irq_handler_ref = self.irq_handler # allocation happens here
+    self.track_change.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler_ref)
 
   @micropython.viper
   def init_pinout_sd(self):
@@ -44,13 +49,13 @@ class disk2:
   @micropython.viper
   def irq_handler(self, pin):
     self.led.on()
-    self.hwspi.write(bytearray([1,0,0,0]))
-    track = self.hwspi.read(1)[0]
+    self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result_track_irq)
+    track = self.spi_result_track_irq[4]
     self.led.off()
     self.diskfile.seek(self.tracklen * track)
     self.diskfile.readinto(self.trackbuf)
     self.led.on()
-    self.hwspi.write(bytearray([0,0,0]))
+    self.hwspi.write(self.spi_write_track)
     self.hwspi.write(self.trackbuf)
     self.led.off()
 
@@ -74,5 +79,5 @@ class disk2:
 
 #import ecp5
 #ecp5.prog("apple2.bit.gz")
-#d=disk2("disk2.nib")
+d=disk2("disk2.nib")
 #d.run()
