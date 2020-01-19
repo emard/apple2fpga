@@ -558,7 +558,7 @@ begin
           when "00" => -- reading track number resets IRQ state
             spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK);
           when others =>
-            spi_data_in <= "0" & btn;
+            spi_data_in <= "0" & R_btn;
         end case;
       end if;
     end if;
@@ -582,7 +582,9 @@ begin
           R_btn_debounce <= (others => '0');
           R_btn <= R_btn_latch;
         else
-          R_btn_debounce <= R_btn_debounce + 1;
+          if R_btn_debounce(R_btn_debounce'high) = '0' then
+            R_btn_debounce <= R_btn_debounce + 1;
+          end if;
         end if;
       end if;
     end if;
