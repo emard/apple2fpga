@@ -28,6 +28,19 @@ CONSTRAINTS = ../constraints/ulx3s_v20_difgpdi.lpf
 TOP_MODULE = ulx3s_apple2
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
 
+CLK0_NAME = clk_25_shift_pixel_v
+CLK0_FILE_NAME = clocks/$(CLK0_NAME).v
+CLK0_OPTIONS = \
+  --module=$(CLK0_NAME) \
+  --clkin_name=clki \
+  --clkin=25 \
+  --clkout0_name=clko \
+  --clkout0=135 \
+  --clkout1_name=clks1 \
+  --clkout1=27 \
+  --clkout2_name=clks2 \
+  --clkout2=13.5
+
 VHDL_FILES = \
   $(TOP_MODULE_FILE) \
   ../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
@@ -59,9 +72,10 @@ VHDL_FILES = \
   ../../../disk_ii.vhd \
   ../../../disk_ii_rom.vhd \
   ../../../spi_controller.vhd \
-  ../../../disk2_spi_slave.vhd \
   ../../../rtl_emard/osd/spi_osd.vhd \
   ../../../rtl_emard/osd/spirw_slave.vhd \
+
+#  clocks/clk_25_shift_pixel.vhd \
 
 VERILOG_FILES = \
   ../../../rtl_emard/osd/spi_osd_v.v \
@@ -70,6 +84,8 @@ VERILOG_FILES = \
   ../../../rtl_emard/usb/usbhost/usbh_sie.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
   ../../../rtl_emard/usb/usbhost/usbh_crc16.v \
+
+#  $(CLK0_FILE_NAME) \
 
 SCRIPTS = ../scripts
 include $(SCRIPTS)/trellis_path.mk
