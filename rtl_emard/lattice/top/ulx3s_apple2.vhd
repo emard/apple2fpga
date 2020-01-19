@@ -185,6 +185,7 @@ architecture Behavioral of ulx3s_apple2 is
   --alias us4_fpga_dp: std_logic is gp(20); -- direct
 
 begin
+  -- 60Hz frame rate
   clk_apple2: entity work.clk_25_140_28_14
   port map
   (
@@ -193,6 +194,16 @@ begin
       CLKOS       =>  clk_28M,   --  28.75  MHz
       CLKOS2      =>  clk_14M    --  14.375 MHz
   );
+
+  -- 56Hz frame rate
+  --clk_apple2: entity work.clk_25_shift_pixel
+  --port map
+  --(
+  --    clki        =>  clk_25mhz,
+  --    clko        =>  clk_140M,  -- 135.00  MHz
+  --    clks1       =>  clk_28M,   --  27.00  MHz
+  --    clks2       =>  clk_14M    --  13.50  MHz
+  --);
   
   clk_usb: entity work.clk_25_125_68_6_25
   port map
@@ -204,8 +215,6 @@ begin
       CLKOS3      =>  open
   );
 
-  --wifi_en <= '1';
-  --wifi_gpio0 <= '1';
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
 
@@ -501,33 +510,6 @@ begin
   image <= "000000" & x"0";
   end generate; -- apple2_sdcard
 
-  Gx_disk2_spi_slave: if false generate
-  Ex_disk2_spi_slave: entity work.disk2_spi_slave
-  port map
-  (
-    CLK_14M        => CLK_14M,
-    RESET          => RESET,
-
-    CS             => wifi_gpio5,
-    SCLK           => wifi_gpio16, --              -- sd_clk,   -- wifi_gpio14
-    MOSI           => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
-    MISO           => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
-
-    track          => TRACK,
-    --track_change   => track_change_req,
-
-    ram_write_addr => TRACK_RAM_ADDR,
-    ram_di         => TRACK_RAM_DI,
-    ram_we         => TRACK_RAM_WE
-  );
-  sd_d(3) <= 'Z'; -- CS_N
-  sd_d(1) <= 'Z';
-  sd_d(2) <= 'Z';
-  --S_oled(45 downto 32) <= TRACK_RAM_ADDR;
-  S_oled(45 downto 32) <= TRACK_ADDR;
-  S_oled(55 downto 48) <= TRACK_RAM_DI;
-  end generate; -- disk2_spi_slave FALSE
-
   G_disk2_spi_slave: if C_esp32 generate
   B_disk2_spi_slave: block
     signal spi_rd, spi_wr: std_logic;
@@ -538,6 +520,7 @@ begin
     signal R_irq: std_logic_vector(1 downto 0); -- interrupt request register
     signal R_track_irq, R_btn_irq: std_logic;
     signal R_spi_rd: std_logic;
+    signal R_btn_debounce: unsigned(15 downto 0);
   begin
   E_disk2_spi_slave: entity work.spirw_slave
   port map
@@ -567,7 +550,7 @@ begin
   S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
   S_oled(55 downto 48) <= TRACK_RAM_DI;
-  P_irqdata: process(CLK_14M)
+  P_read_irq_flags: process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
       if spi_rd = '1' then
@@ -580,8 +563,8 @@ begin
       end if;
     end if;
   end process;
-  -- generate track change request signal
-  P_irq: process(CLK_14M)
+  -- generate track change request signal and track BTN state
+  P_irq_controller: process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
       R_spi_rd <= spi_rd;
@@ -593,14 +576,17 @@ begin
           R_track_irq <= '1';
         end if;
         R_track <= track;
-        if R_btn /= btn then
+        if R_btn /= btn and R_btn_debounce(R_btn_debounce'high) = '1' then
           R_btn_irq <= '1';
+          R_btn_debounce <= (others => '0');
+          R_btn <= btn;
+        else
+          R_btn_debounce <= R_btn_debounce + 1;
         end if;
-        R_btn <= btn;
       end if;
     end if;
   end process;
-  wifi_gpio0 <= not (R_track_irq or R_btn_irq); -- interrupt on falling edge
+  wifi_gpio0 <= not (R_track_irq or R_btn_irq); -- interrupt line, active on falling edge
   end block;
   end generate; -- disk2_spi_slave
 
