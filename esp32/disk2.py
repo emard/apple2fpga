@@ -16,13 +16,13 @@
 
 from machine import SPI, Pin
 from micropython import const, alloc_emergency_exception_buf
+from uctypes import addressof
 
 class disk2:
   def __init__(self, file_nib):
     self.diskfilename = file_nib
     print("DISK ][ %s" % self.diskfilename)
-    self.tracklen = const(6656)
-    self.trackbuf = bytearray(self.tracklen)
+    self.trackbuf = bytearray(6656)
     self.spi_read_track_irq = bytearray([1,0,0,0,0])
     self.spi_result_track_irq = bytearray(5)
     self.spi_write_track = bytearray([0,0,0])
@@ -48,11 +48,13 @@ class disk2:
 
   @micropython.viper
   def irq_handler(self, pin):
+    p = ptr8(addressof(self.spi_result_track_irq))
     self.led.on()
     self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result_track_irq)
-    track = self.spi_result_track_irq[4]
+    track = p[4]
+    track &= 0x3F
     self.led.off()
-    self.diskfile.seek(self.tracklen * track)
+    self.diskfile.seek(6656 * track)
     self.diskfile.readinto(self.trackbuf)
     self.led.on()
     self.hwspi.write(self.spi_write_track)
