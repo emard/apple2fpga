@@ -7,14 +7,14 @@
 # this code is SPI master to FPGA SPI slave
 # FPGA sends pulse to GPIO after it changes track number
 # on GPIO pin interrupt from FPGA:
-# track_number = SPI_read_byte
+# track_number = SPI_read
 # track_len = 6656 bytes
 # seek(track_number*track_len)
 # buffer = read(track_len)
 # SPI_write(buffer)
 # FPGA SPI slave reads track in BRAM buffer
 
-from machine import SPI, Pin
+from machine import SPI, Pin, SDCard
 from micropython import const, alloc_emergency_exception_buf
 from uctypes import addressof
 import os
@@ -39,7 +39,7 @@ class disk2:
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.diskfile = open(self.diskfilename, "rb")
-    self.spi_channel = const(1)
+    self.spi_channel = const(2)
     self.init_pinout_sd()
     self.spi_freq = const(2000000)
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
@@ -47,6 +47,7 @@ class disk2:
     self.count_prev = 0
     self.track_change = Pin(0, Pin.IN, Pin.PULL_UP)
     alloc_emergency_exception_buf(100)
+    self.irq_handler(0)
     self.irq_handler_ref = self.irq_handler # allocation happens here
     self.track_change.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler_ref)
 
@@ -69,7 +70,7 @@ class disk2:
     self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result)
     self.led.off()
     track_irq = p8result[4]
-    if track_irq & 0x40:
+    if track_irq & 0x40: # track change event
       track = track_irq & 0x3F
       self.diskfile.seek(6656 * track)
       self.diskfile.readinto(self.trackbuf)
@@ -77,32 +78,31 @@ class disk2:
       self.hwspi.write(self.spi_write_track)
       self.hwspi.write(self.trackbuf)
       self.led.off()
-    if track_irq & 0x80:
+    if track_irq & 0x80: # btn event
       self.led.on()
       self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
       self.led.off()
       btn = p8result[4]
-      self.osd_enable((btn & 2) >> 1)
-      p8result[0] = 48 + ((btn &  4)>>2)
-      p8result[1] = 48 + ((btn &  8)>>3)
-      p8result[2] = 48 + ((btn & 16)>>4)
-      p8result[3] = 48 + ((btn & 32)>>5)
-      p8result[4] = 48 + ((btn & 64)>>6)
-      self.osd_print(10,5,self.spi_result)
-      if btn&4:
-        #self.refresh_dir_line(0,0)
-        #self.refresh_dir_line(1,0)
-        #self.refresh_dir_line(7,0)
+      self.osd_enable((btn&2) >> 1) # hold btn1 to enable OSD
+      if btn&4: # btn2 refresh directory
         self.show_directory()
-      if btn&8: # cursor up
+      if btn&8: # btn3 cursor up
         self.move_dir_cursor(-1)
-      if btn&16: # cursor down
+      if btn&16: # btn4 cursor down
         self.move_dir_cursor(1)
-      if btn&64: # cursor right
-        oldselected = self.fb_selected - self.fb_topitem
-        self.fb_selected = self.fb_cursor
-        self.show_dir_line(oldselected)
-        self.show_dir_line(self.fb_cursor - self.fb_topitem)
+      if btn&64: # btn6 cursor right
+        self.change_file()
+
+  def change_file(self):
+    oldselected = self.fb_selected - self.fb_topitem
+    self.fb_selected = self.fb_cursor
+    try:
+      self.diskfile = open(self.direntries[self.fb_cursor][0], "rb")
+    except:
+      self.diskfile = False
+      self.fb_selected = -1
+    self.show_dir_line(oldselected)
+    self.show_dir_line(self.fb_cursor - self.fb_topitem)
 
   @micropython.viper
   def osd_enable(self, en:int):
@@ -132,13 +132,6 @@ class disk2:
     self.hwspi.write(self.spi_write_osd)
     self.hwspi.read(1280,32)
     self.led.off()
-
-  # moving cursor inside screen, no scrolling
-  #def refresh_dir_line(self, cursor, highlight):
-  #  screen_line = cursor - self.fb_topitem
-  #  if screen_line < 0 or screen_line >= self.screen_y:
-  #    return
-  #  self.osd_print(0, screen_line, self.direntries[cursor][0])
 
   # y is actual line on the screen
   def show_dir_line(self, y):
@@ -223,5 +216,7 @@ class disk2:
 
 #import ecp5
 #ecp5.prog("apple2.bit.gz")
-d=disk2("disk2.nib")
-#d.run()
+os.mount(SDCard(slot=3),"/sd")
+os.chdir("/sd/apple2")
+d=disk2("snack_attack.nib")
+#d=disk2("disk2.nib")
