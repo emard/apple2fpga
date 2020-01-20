@@ -19,6 +19,10 @@ from micropython import const, alloc_emergency_exception_buf
 from uctypes import addressof
 import os
 
+import ecp5
+import gc
+import ps2tn
+
 class disk2:
   def __init__(self, file_nib):
     self.diskfilename = file_nib
@@ -71,6 +75,7 @@ class disk2:
     self.led.off()
     track_irq = p8result[4]
     if track_irq & 0x40: # track change event
+     if self.diskfile:
       track = track_irq & 0x3F
       self.diskfile.seek(6656 * track)
       self.diskfile.readinto(self.trackbuf)
@@ -214,9 +219,8 @@ class disk2:
 # check them with *C0EC
 #d.led.on(); d.hwspi.write(bytearray([0xd0,0xb2,0x02,0x59,0x17,0x69,0x91,0x9f]));d.led.off()
 
-#import ecp5
-#ecp5.prog("apple2.bit.gz")
+ecp5.prog("apple2.bit.gz")
+gc.collect()
 os.mount(SDCard(slot=3),"/sd")
 os.chdir("/sd/apple2")
 d=disk2("snack_attack.nib")
-#d=disk2("disk2.nib")
