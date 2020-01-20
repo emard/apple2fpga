@@ -29,6 +29,7 @@ class disk2:
     print("DISK ][ %s" % self.diskfilename)
     self.screen_x = const(64)
     self.screen_y = const(20)
+    self.cwd = "/"
     self.init_fb()
     self.exp_names = " KMGTE"
     self.highlight = bytearray([32,16,42]) # space, right triangle, asterisk
@@ -90,19 +91,49 @@ class disk2:
       btn = p8result[4]
       self.osd_enable((btn&2) >> 1) # hold btn1 to enable OSD
       if btn&4: # btn2 refresh directory
-        self.show_directory()
+        self.show_dir()
       if btn&8: # btn3 cursor up
         self.move_dir_cursor(-1)
       if btn&16: # btn4 cursor down
         self.move_dir_cursor(1)
+      if btn&32: # btn6 cursor left
+        self.updir()
       if btn&64: # btn6 cursor right
-        self.change_file()
+        self.select_entry()
+
+  def select_entry(self):
+    if self.direntries[self.fb_cursor][1]: # is it directory
+      self.cwd = self.fullpath(self.direntries[self.fb_cursor][0])
+      self.init_fb()
+      self.read_dir()
+      self.show_dir()
+    else:
+      self.change_file()
+
+  def updir(self):
+    if len(self.cwd) < 1:
+      self.cwd = "/"
+    else:
+      s = self.cwd.split("/")[:-1]
+      self.cwd = ""
+      for name in s:
+        if len(name) > 0:
+          self.cwd += "/"+name
+    self.init_fb()
+    self.read_dir()
+    self.show_dir()
+
+  def fullpath(self,fname):
+    if self.cwd.endswith("/"):
+      return self.cwd+fname
+    else:
+      return self.cwd+"/"+fname
 
   def change_file(self):
     oldselected = self.fb_selected - self.fb_topitem
     self.fb_selected = self.fb_cursor
     try:
-      self.diskfile = open(self.direntries[self.fb_cursor][0], "rb")
+      self.diskfile = open(self.fullpath(self.direntries[self.fb_cursor][0]), "rb")
     except:
       self.diskfile = False
       self.fb_selected = -1
@@ -161,7 +192,7 @@ class disk2:
         exponent += 1
       self.osd_print(0,y,"%c%-57s %4d%c" % (self.highlight[highlight],self.direntries[i][0], mantissa, self.exp_names[exponent]))
 
-  def show_directory(self):
+  def show_dir(self):
     for i in range(self.screen_y):
       self.show_dir_line(i)
 
@@ -183,19 +214,18 @@ class disk2:
           screen_line = 0
           if self.fb_topitem > 0:
             self.fb_topitem -= 1
-            self.show_directory()
+            self.show_dir()
         else: # cursor going down
           screen_line = self.screen_y-1
           if self.fb_topitem+self.screen_y < len(self.direntries):
             self.fb_topitem += 1
-            self.show_directory()
+            self.show_dir()
 
   def read_dir(self):
     self.direntries = []
-    self.cwd = os.getcwd()
     ls = sorted(os.listdir(self.cwd))
     for fname in ls:
-      stat = os.stat(fname)
+      stat = os.stat(self.fullpath(fname))
       if stat[0] & 0o170000 == 0o040000:
         self.direntries.append([fname,1,0]) # directory
       else:
@@ -222,5 +252,6 @@ class disk2:
 ecp5.prog("apple2.bit.gz")
 gc.collect()
 os.mount(SDCard(slot=3),"/sd")
-os.chdir("/sd/apple2")
-d=disk2("snack_attack.nib")
+#os.chdir("/sd/apple2")
+d=disk2("/sd/apple2/snack_attack.nib")
+#d=disk2("disk2.nib")
