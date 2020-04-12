@@ -39,7 +39,7 @@ class disk2:
     self.spi_result = bytearray(7)
     self.spi_write_track = bytearray([0,0,0,0,0])
     self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
-    self.spi_write_osd = bytearray([0,0xF0,0,0,0])
+    self.spi_write_osd = bytearray([0,0xFD,0,0,0])
     self.spi_read_btn = bytearray([1,0xFE,0,0,0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
@@ -237,11 +237,11 @@ class disk2:
     else:
       enable = 0
     self.led.on()
-    self.hwspi.write(bytearray([0,0xFE,0,enable])) # enable OSD
+    self.hwspi.write(bytearray([0,0xFE,0,0,0,enable])) # enable OSD
     self.led.off()
     if enable:
       self.led.on()
-      self.hwspi.write(bytearray([0,0xF0,0])) # write content
+      self.hwspi.write(bytearray([0,0xF0,0,0,0])) # write content
       self.hwspi.write(bytearray(a)) # write content
       self.led.off()
 
@@ -253,5 +253,5 @@ class disk2:
 gc.collect()
 os.mount(SDCard(slot=3),"/sd")
 #os.chdir("/sd/apple2")
-d=disk2("/sd/apple2/snack_attack.nib")
+#d=disk2("/sd/apple2/snack_attack.nib")
 #d=disk2("disk2.nib")
