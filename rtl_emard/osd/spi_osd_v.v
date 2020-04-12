@@ -8,8 +8,9 @@ module spi_osd_v
   parameter c_chars_x   = 64,  // x8  pixel window h-size
   parameter c_chars_y   = 24,  // x16 pixel window v-size
   parameter c_init_on   = 1,   // 0:default OFF 1:default ON
+  parameter c_inverse   = 1,   // 0:no inverse, 1:inverse support
   parameter c_char_file = "osd.mem", // initial window content, 2 ASCII HEX digits per line
-  parameter c_font_file = "font_vga.mem" // font bitmap, 2 ASCII HEX digits per line
+  parameter c_font_file = "font_bizcat8x16.mem" // font bitmap, 8 ASCII BIN digits per line
 )
 (
   input  wire clk_pixel, clk_pixel_ena,
@@ -25,7 +26,7 @@ module spi_osd_v
   output wire o_hsync, o_vsync, o_blank
 );
 
-    reg [7:0] tile_map [0:c_chars_x*c_chars_y-1]; // tile memory (character map)
+    reg [7+c_inverse:0] tile_map [0:c_chars_x*c_chars_y-1]; // tile memory (character map)
     initial
       $readmemh(c_char_file, tile_map);
 
@@ -52,25 +53,35 @@ module spi_osd_v
     );
     always @(posedge clk_pixel)
     begin
-      if(ram_wr & (ram_addr[31:24] == 8'hFD))
-        tile_map[ram_addr] <= ram_di; // write to 0xFDxxxxxxxx for OSD
+      if(ram_wr && (ram_addr[31:24] == 8'hFD))
+        if(c_inverse)
+          tile_map[ram_addr] <= {ram_addr[16],ram_di}; // ASCII to 0xFDx0xxxx normal, 0xFDx1xxxx inverted
+        else
+          tile_map[ram_addr] <= ram_di;
       //ram_do <= tile_map[ram_addr];
     end
 
     reg osd_en = c_init_on;
     always @(posedge clk_pixel)
     begin
-      if(ram_wr && (ram_addr[31:24]==8'hFE)) // write to 0xFE00 enables/disables OSD
+      if(ram_wr && (ram_addr[31:24] == 8'hFE)) // write to 0xFExxxxxx enables/disables OSD
         osd_en <= ram_di[0];
     end
 
     wire [9:0] osd_x, osd_y;
     reg [7:0] font[0:4095];
     initial
-      $readmemh(c_font_file, font);
+      $readmemb(c_font_file, font);
     reg [7:0] data_out;
-    always @(posedge clk_pixel)
-      data_out[7:0] <= font[{ tile_map[(osd_y >> 4) * c_chars_x + (osd_x >> 3)], osd_y[3:0] }];
+    wire [11:0] tileaddr = (osd_y >> 4) * c_chars_x + (osd_x >> 3);
+    generate
+      if(c_inverse)
+        always @(posedge clk_pixel)
+          data_out[7:0] <= font[{tile_map[tileaddr], osd_y[3:0]}] ^ {8{tile_map[tileaddr][8]}};
+      else
+        always @(posedge clk_pixel)
+          data_out[7:0] <= font[{tile_map[tileaddr], osd_y[3:0]}];
+    endgenerate
     wire [7:0] data_out_align = {data_out[0], data_out[7:1]};
     wire osd_pixel = data_out_align[7-osd_x[2:0]];
 

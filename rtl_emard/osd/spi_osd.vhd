@@ -11,8 +11,9 @@ entity spi_osd is
     c_chars_x   : natural := 64; -- x8  pixel window h-size
     c_chars_y   : natural := 24; -- x16 pixel window v-size
     c_init_on   : natural :=  1; -- 0:default OFF 1:default ON
+    c_inverse   : natural :=  1; -- 0:no inverse, 1:inverse chars support
     c_char_file : string  := "osd.mem"; -- initial window content, 2 ASCII HEX digits per line
-    c_font_file : string  := "font_vga.mem" -- font bitmap, 2 ASCII HEX digits per line
+    c_font_file : string  := "font_bizcat8x16.mem" -- font bitmap, 8 ASCII BIN digits per line
   );
   port
   (
@@ -35,6 +36,7 @@ architecture syn of spi_osd is
     c_chars_x   : natural;
     c_chars_y   : natural;
     c_init_on   : natural;
+    c_inverse   : natural;
     c_char_file : string;
     c_font_file : string
   );
@@ -59,6 +61,7 @@ begin
     c_chars_x   => c_chars_x,
     c_chars_y   => c_chars_y,
     c_init_on   => c_init_on,
+    c_inverse   => c_inverse,
     c_char_file => c_char_file,
     c_font_file => c_font_file
   )

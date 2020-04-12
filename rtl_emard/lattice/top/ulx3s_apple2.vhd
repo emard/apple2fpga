@@ -639,7 +639,7 @@ begin
     c_chars_x => 64, c_chars_y => 20, -- xy size, slightly less than full screen
     c_init_on => 0, -- 1:OSD initially shown without any SPI init
     c_char_file => "osd.mem", -- initial OSD content
-    c_font_file => "font_vga.mem"
+    c_font_file => "font_bizcat8x16.mem"
   )
   port map
   (
