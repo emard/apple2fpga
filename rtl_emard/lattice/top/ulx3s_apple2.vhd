@@ -265,7 +265,9 @@ begin
  
   COLOR_LINE_CONTROL <= COLOR_LINE and SW(3);  -- Color or B&W mode
 
-  core : entity work.apple2 port map (
+  core : entity work.apple2
+  port map
+  (
     CLK_14M        => CLK_14M,
     CLK_2M         => CLK_2M,
     PRE_PHASE_ZERO => PRE_PHASE_ZERO,
@@ -603,7 +605,7 @@ begin
   ram_64K: entity work.bram_true2p_1clk
   generic map
   (
-        dual_port => false,
+        dual_port => true,
         pass_thru_a => false,
         data_width => 8,
         addr_width => 16
@@ -614,7 +616,10 @@ begin
         we_a => bram_we,
         addr_a => std_logic_vector(bram_addr),
         data_in_a => std_logic_vector(d),
-        data_out_a => bram_dq
+        data_out_a => bram_dq,
+        we_b => btn(2), -- press BTN2 to spoil CRC of warmstart reset vector
+        addr_b => x"03F4", -- reset vector CRC address 0x03F4
+        data_in_b => std_logic_vector(flash_clk(7 downto 0)) -- random
   );
 
   -- Processor PC on the right four digits
