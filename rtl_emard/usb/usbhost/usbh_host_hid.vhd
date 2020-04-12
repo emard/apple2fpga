@@ -19,7 +19,8 @@ use work.usbh_setup_pack.all;
 entity usbh_host_hid is
   generic
   (
-    C_usb_speed: std_logic := '1' -- '0':6 MHz low speed '1':48 MHz full speed 
+    C_usb_speed: std_logic := '0'; -- '0':6 MHz low speed '1':48 MHz full speed
+    C_report_length_strict: std_logic := '0'
   );
   port
   (
@@ -87,6 +88,11 @@ architecture Behavioral of usbh_host_hid is
   signal R_reset_pending: std_logic;
   signal R_reset_accepted : std_logic;
 
+  constant C_sof_pid: std_logic_vector(7 downto 0) := x"A5";
+  signal R_sof_counter: std_logic_vector(10 downto 0);
+  signal S_sof_dev: std_logic_vector(6 downto 0);
+  signal S_sof_ep: std_logic_vector(3 downto 0);
+
   -- sie wires
   signal  rst_i             :  std_logic;
   signal  start_i           :  std_logic := '0';
@@ -153,10 +159,10 @@ architecture Behavioral of usbh_host_hid is
 
   -- USB1.1 PHY soft-core
   usb11_phy: entity work.usb_phy
-  generic map
-  (
-    usb_rst_det => true
-  )
+  --generic map
+  --(
+  --  usb_rst_det => true
+  --)
   port map
   (
     clk => clk_usb, -- full speed: 48 MHz or 60 MHz, low speed: 6 MHz or 7.5 MHz
@@ -268,10 +274,13 @@ architecture Behavioral of usbh_host_hid is
                     end if;
                   else
                     if rx_done_o = '1' then
-                      R_retry <= (others => '0');
                       R_stored_response <= response_o;
-                      if response_o = x"4B" then -- SIE quirk: set address resturns 4B = PID_DATA1 instead of D2
+                      -- SIE quirk: set address returns 4B = PID_DATA1 instead of D2
+                      if response_o = x"4B" then
+                        R_retry <= (others => '0');
                         R_dev_address_confirmed <= R_dev_address_requested;
+                      else -- set address failed
+                        R_retry <= R_retry + 1;
                       end if;
                     end if;
                   end if;
@@ -333,6 +342,10 @@ architecture Behavioral of usbh_host_hid is
   end process;
   end block;
 
+  -- NOTE: not sure is this bit order correct
+  S_sof_dev <= R_sof_counter(10 downto 4); -- 7 bits
+  S_sof_ep  <= R_sof_counter( 3 downto 0); -- 4 bits
+
   S_expected_response <= x"4B" when data_idx_i = '1' else x"C3";
   process(clk_usb)
   begin
@@ -353,7 +366,8 @@ architecture Behavioral of usbh_host_hid is
               resp_expected_i <= '0';
               ctrlin          <= '0';
               start_i         <= '1';
-              R_packet_counter <= (others => '0');
+              R_packet_counter<= (others => '0');
+              R_sof_counter   <= (others => '0');
               R_state <= C_STATE_SETUP;
             end if;
           else
@@ -372,7 +386,15 @@ architecture Behavioral of usbh_host_hid is
                 -- keepalive signal
                 sof_transfer_i  <= '1';   -- transfer SOF or linectrl
                 in_transfer_i   <= C_keepalive_type;   -- 0:SOF, 1:linectrl
-                token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                if C_keepalive_type = '1' then
+                  token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                else
+                  token_pid_i <= C_sof_pid;
+                  token_dev_i <= S_sof_dev;
+                  token_ep_i  <= S_sof_ep;
+                  data_len_i  <= (others => '0');
+                  R_sof_counter <= R_sof_counter + 1;
+                end if;
                 resp_expected_i <= '0';
                 start_i         <= '1';
               else
@@ -381,9 +403,9 @@ architecture Behavioral of usbh_host_hid is
             else -- time passed, send next setup packet or read status or read response
               R_slow <= (others => '0');
               sof_transfer_i  <= '0';
+              token_dev_i     <= R_dev_address_confirmed;
               token_ep_i      <= x"0";
               resp_expected_i <= '1';
-              token_dev_i <= R_dev_address_confirmed;
               if R_setup_rom_addr = C_setup_rom_len then
                 data_len_i <= x"0000";
                 start_i <= '0';
@@ -422,7 +444,15 @@ architecture Behavioral of usbh_host_hid is
                 -- keepalive signal
                 sof_transfer_i  <= '1';   -- transfer SOF or linectrl
                 in_transfer_i   <= C_keepalive_type;   -- 0:SOF, 1:linectrl
-                token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                if C_keepalive_type = '1' then
+                  token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                else
+                  token_pid_i <= C_sof_pid;
+                  token_dev_i <= S_sof_dev;
+                  token_ep_i  <= S_sof_ep;
+                  data_len_i  <= (others => '0');
+                  R_sof_counter <= R_sof_counter + 1;
+                end if;
                 resp_expected_i <= '0';
                 start_i         <= '1';
               else
@@ -438,6 +468,9 @@ architecture Behavioral of usbh_host_hid is
               sof_transfer_i  <= '0';
               in_transfer_i   <= '1';
               token_pid_i     <= x"69";
+              if C_keepalive_type = '0' then
+                token_dev_i   <= R_dev_address_confirmed;
+              end if;
               token_ep_i      <= std_logic_vector(to_unsigned(C_report_endpoint,token_ep_i'length));
               data_idx_i      <= '0';
 --              R_packet_counter <= R_packet_counter + 1;
@@ -463,7 +496,15 @@ architecture Behavioral of usbh_host_hid is
                 -- keepalive signal
                 sof_transfer_i  <= '1';   -- transfer SOF or linectrl
                 in_transfer_i   <= C_keepalive_type;   -- 0:SOF, 1:linectrl
-                token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                if C_keepalive_type = '1' then
+                  token_pid_i(1 downto 0) <= "00"; -- linectrl: keepalive
+                else
+                  token_pid_i <= C_sof_pid;
+                  token_dev_i <= S_sof_dev;
+                  token_ep_i  <= S_sof_ep;
+                  data_len_i  <= (others => '0');
+                  R_sof_counter <= R_sof_counter + 1;
+                end if;
                 resp_expected_i <= '0';
                 start_i         <= '1';
               else
@@ -477,6 +518,9 @@ architecture Behavioral of usbh_host_hid is
                 token_pid_i     <= x"69"; -- 69=IN
               else
                 token_pid_i     <= x"E1"; -- E1=OUT
+              end if;
+              if C_keepalive_type = '0' then
+                token_dev_i     <= R_dev_address_confirmed;
               end if;
               token_ep_i      <= x"0";
               resp_expected_i <= '1';
@@ -592,7 +636,10 @@ architecture Behavioral of usbh_host_hid is
     signal R_hid_valid: std_logic;
     signal R_crc_err: std_logic;
     signal R_rx_done: std_logic;
+    signal S_report_length_ok: boolean;
   begin
+    S_report_length_ok <= R_rx_count = std_logic_vector(to_unsigned(C_report_length,rx_count_o'length)) when C_report_length_strict = '1'
+                     else R_rx_count /= x"0000"; -- more flexible, but noise at darfon
     process(clk_usb)
     begin
       if rising_edge(clk_usb) then
@@ -613,8 +660,7 @@ architecture Behavioral of usbh_host_hid is
         -- at falling edge of rx_done it should not accumulate any crc error
         if R_rx_done = '1' and rx_done_o = '0' and R_crc_err = '0' and timeout_o = '0'
         and R_state = C_STATE_REPORT
-        -- and R_rx_count = std_logic_vector(to_unsigned(C_report_length,rx_count_o'length)) -- strict
-        and R_rx_count /= x"0000" -- more flexible
+        and S_report_length_ok
         then
           R_hid_valid <= '1';
         else
