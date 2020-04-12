@@ -69,7 +69,8 @@ class disk2:
     self.hwspi.write_readinto(self.spi_read_irq, self.spi_result)
     self.led.off()
     flag_irq = p8result[6]
-    if flag_irq & 0x40: # track change event
+    if flag_irq & 0xC0: # 0x40 track change event or 0x80 BTN event
+     # after track change, BTN will normally be released new data uploaded
      if self.diskfile:
       track = flag_irq & 0x3F
       self.diskfile.seek(6656 * track)
@@ -78,7 +79,7 @@ class disk2:
       self.hwspi.write(self.spi_write_track)
       self.hwspi.write(self.trackbuf)
       self.led.off()
-    if flag_irq & 0x80: # btn event
+    if flag_irq & 0x80: # BTN event
       self.led.on()
       self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
       self.led.off()
