@@ -35,12 +35,12 @@ class disk2:
     self.highlight = bytearray([32,16,42]) # space, right triangle, asterisk
     self.read_dir()
     self.trackbuf = bytearray(6656)
-    self.spi_read_track_irq = bytearray([1,0,0,0,0])
-    self.spi_result = bytearray(5)
-    self.spi_write_track = bytearray([0,0,0])
-    self.spi_enable_osd = bytearray([0,0xFE,0,1])
-    self.spi_write_osd = bytearray([0,0xF0,0])
-    self.spi_read_btn = bytearray([1,0xFE,0,0,0])
+    self.spi_read_track_irq = bytearray([1,0,0,0,0,0,0])
+    self.spi_result = bytearray(7)
+    self.spi_write_track = bytearray([0,0,0,0,0])
+    self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
+    self.spi_write_osd = bytearray([0,0xF0,0,0,0])
+    self.spi_read_btn = bytearray([1,0xFE,0,0,0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.diskfile = open(self.diskfilename, "rb")
@@ -74,7 +74,7 @@ class disk2:
     self.led.on()
     self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result)
     self.led.off()
-    track_irq = p8result[4]
+    track_irq = p8result[6]
     if track_irq & 0x40: # track change event
      if self.diskfile:
       track = track_irq & 0x3F
@@ -88,7 +88,7 @@ class disk2:
       self.led.on()
       self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
       self.led.off()
-      btn = p8result[4]
+      btn = p8result[6]
       self.osd_enable((btn&2) >> 1) # hold btn1 to enable OSD
       if btn&4: # btn2 refresh directory
         self.show_dir()
@@ -143,7 +143,7 @@ class disk2:
   @micropython.viper
   def osd_enable(self, en:int):
     pena = ptr8(addressof(self.spi_enable_osd))
-    pena[3] = en&1
+    pena[5] = en&1
     self.led.on()
     self.hwspi.write(self.spi_enable_osd)
     self.led.off()
@@ -152,8 +152,8 @@ class disk2:
   def osd_print(self, x:int, y:int, text):
     p8msg=ptr8(addressof(self.spi_write_osd))
     a=0xF000+(x&63)+((y&31)<<6)
-    p8msg[1]=a>>8
-    p8msg[2]=a
+    p8msg[3]=a>>8
+    p8msg[4]=a
     self.led.on()
     self.hwspi.write(self.spi_write_osd)
     self.hwspi.write(text)
@@ -162,8 +162,8 @@ class disk2:
   @micropython.viper
   def osd_cls(self):
     p8msg=ptr8(addressof(self.spi_write_osd))
-    p8msg[1]=0xF0
-    p8msg[2]=0
+    p8msg[3]=0xF0
+    p8msg[4]=0
     self.led.on()
     self.hwspi.write(self.spi_write_osd)
     self.hwspi.read(1280,32)
@@ -249,7 +249,7 @@ class disk2:
 # check them with *C0EC
 #d.led.on(); d.hwspi.write(bytearray([0xd0,0xb2,0x02,0x59,0x17,0x69,0x91,0x9f]));d.led.off()
 
-ecp5.prog("apple2.bit.gz")
+#ecp5.prog("apple2.bit.gz")
 gc.collect()
 os.mount(SDCard(slot=3),"/sd")
 #os.chdir("/sd/apple2")
