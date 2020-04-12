@@ -1,60 +1,54 @@
 # micropython ESP32
-# DISK ][ NIB disk image server, read only
+# NES ROM image loader
 
 # AUTHOR=EMARD
 # LICENSE=BSD
 
 # this code is SPI master to FPGA SPI slave
-# FPGA sends pulse to GPIO after it changes track number
+# FPGA sends pulse to GPIO after BTN state is changed.
 # on GPIO pin interrupt from FPGA:
-# track_number = SPI_read
-# track_len = 6656 bytes
-# seek(track_number*track_len)
-# buffer = read(track_len)
+# btn_state = SPI_read
 # SPI_write(buffer)
-# FPGA SPI slave reads track in BRAM buffer
+# FPGA SPI slave will accept image and start it
 
-from machine import SPI, Pin, SDCard
+from machine import SPI, Pin, SDCard, Timer
 from micropython import const, alloc_emergency_exception_buf
 from uctypes import addressof
 import os
 
 import ecp5
 import gc
-import ps2tn
 
 class disk2:
-  def __init__(self, file_nib):
-    self.diskfilename = file_nib
-    print("DISK ][ %s" % self.diskfilename)
+  def __init__(self):
     self.screen_x = const(64)
     self.screen_y = const(20)
     self.cwd = "/"
     self.init_fb()
     self.exp_names = " KMGTE"
-    self.highlight = bytearray([32,16,42]) # space, right triangle, asterisk
+    self.mark = bytearray([32,16,42]) # space, right triangle, asterisk
+    self.diskfile = False
     self.read_dir()
     self.trackbuf = bytearray(6656)
-    self.spi_read_track_irq = bytearray([1,0,0,0,0,0,0])
+    self.spi_read_irq = bytearray([1,0,0,0,0,0,0])
+    self.spi_read_btn = bytearray([1,0xFE,0,0,0,0,0])
     self.spi_result = bytearray(7)
-    self.spi_write_track = bytearray([0,0,0,0,0])
     self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
     self.spi_write_osd = bytearray([0,0xFD,0,0,0])
-    self.spi_read_btn = bytearray([1,0xFE,0,0,0,0,0])
+    self.spi_write_track = bytearray([0,0,0,0,0])
     self.led = Pin(5, Pin.OUT)
     self.led.off()
-    self.diskfile = open(self.diskfilename, "rb")
     self.spi_channel = const(2)
     self.init_pinout_sd()
     self.spi_freq = const(2000000)
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
-    self.count = 0
-    self.count_prev = 0
-    self.track_change = Pin(0, Pin.IN, Pin.PULL_UP)
     alloc_emergency_exception_buf(100)
+    self.enable = bytearray(1)
+    self.timer = Timer(3)
     self.irq_handler(0)
     self.irq_handler_ref = self.irq_handler # allocation happens here
-    self.track_change.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler_ref)
+    self.spi_request = Pin(0, Pin.IN, Pin.PULL_UP)
+    self.spi_request.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler_ref)
 
 # init file browser
   def init_fb(self):
@@ -72,34 +66,55 @@ class disk2:
   def irq_handler(self, pin):
     p8result = ptr8(addressof(self.spi_result))
     self.led.on()
-    self.hwspi.write_readinto(self.spi_read_track_irq, self.spi_result)
+    self.hwspi.write_readinto(self.spi_read_irq, self.spi_result)
     self.led.off()
-    track_irq = p8result[6]
-    if track_irq & 0x40: # track change event
+    flag_irq = p8result[6]
+    if flag_irq & 0x40: # track change event
      if self.diskfile:
-      track = track_irq & 0x3F
+      track = flag_irq & 0x3F
       self.diskfile.seek(6656 * track)
       self.diskfile.readinto(self.trackbuf)
       self.led.on()
       self.hwspi.write(self.spi_write_track)
       self.hwspi.write(self.trackbuf)
       self.led.off()
-    if track_irq & 0x80: # btn event
+    if flag_irq & 0x80: # btn event
       self.led.on()
       self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
       self.led.off()
       btn = p8result[6]
-      self.osd_enable((btn&2) >> 1) # hold btn1 to enable OSD
-      if btn&4: # btn2 refresh directory
-        self.show_dir()
-      if btn&8: # btn3 cursor up
-        self.move_dir_cursor(-1)
-      if btn&16: # btn4 cursor down
-        self.move_dir_cursor(1)
-      if btn&32: # btn6 cursor left
-        self.updir()
-      if btn&64: # btn6 cursor right
-        self.select_entry()
+      p8enable = ptr8(addressof(self.enable))
+      if p8enable[0]&2: # wait to release all BTNs
+        if btn==1:
+          p8enable[0]&=1 # clear bit that waits for all BTNs released
+      else: # all BTNs released
+        if (btn&0x78)==0x78: # all cursor BTNs pressed at the same time
+          self.show_dir() # refresh directory
+          p8enable[0]=(p8enable[0]^1)|2;
+          self.osd_enable(p8enable[0]&1)
+        if p8enable[0]==1:
+          if btn==9: # btn3 cursor up
+            self.start_autorepeat(-1)
+          if btn==17: # btn4 cursor down
+            self.start_autorepeat(1)
+          if btn==1:
+            self.timer.deinit() # stop autorepeat
+          if btn==33: # btn6 cursor left
+            self.updir()
+          if btn==65: # btn6 cursor right
+            self.select_entry()
+
+  def start_autorepeat(self, i:int):
+    self.autorepeat_direction=i
+    self.move_dir_cursor(i)
+    self.timer_slow=1
+    self.timer.init(mode=Timer.PERIODIC, period=500, callback=self.autorepeat)
+
+  def autorepeat(self, timer):
+    if self.timer_slow:
+      self.timer_slow=0
+      self.timer.init(mode=Timer.PERIODIC, period=30, callback=self.autorepeat)
+    self.move_dir_cursor(self.autorepeat_direction)
 
   def select_entry(self):
     if self.direntries[self.fb_cursor][1]: # is it directory
@@ -111,7 +126,7 @@ class disk2:
       self.change_file()
 
   def updir(self):
-    if len(self.cwd) < 1:
+    if len(self.cwd) < 2:
       self.cwd = "/"
     else:
       s = self.cwd.split("/")[:-1]
@@ -133,12 +148,16 @@ class disk2:
     oldselected = self.fb_selected - self.fb_topitem
     self.fb_selected = self.fb_cursor
     try:
-      self.diskfile = open(self.fullpath(self.direntries[self.fb_cursor][0]), "rb")
+      filename = self.fullpath(self.direntries[self.fb_cursor][0])
     except:
-      self.diskfile = False
+      filename = False
       self.fb_selected = -1
     self.show_dir_line(oldselected)
     self.show_dir_line(self.fb_cursor - self.fb_topitem)
+    if filename:
+      self.diskfile = open(filename, "rb")
+      self.osd_enable(0)
+      self.enable[0]=0
 
   @micropython.viper
   def osd_enable(self, en:int):
@@ -149,9 +168,10 @@ class disk2:
     self.led.off()
 
   @micropython.viper
-  def osd_print(self, x:int, y:int, text):
+  def osd_print(self, x:int, y:int, i:int, text):
     p8msg=ptr8(addressof(self.spi_write_osd))
-    a=(x&63)+((y&31)<<6)
+    a=0xF000+(x&63)+((y&31)<<6)
+    p8msg[2]=i
     p8msg[3]=a>>8
     p8msg[4]=a
     self.led.on()
@@ -162,7 +182,7 @@ class disk2:
   @micropython.viper
   def osd_cls(self):
     p8msg=ptr8(addressof(self.spi_write_osd))
-    p8msg[3]=0
+    p8msg[3]=0xF0
     p8msg[4]=0
     self.led.on()
     self.hwspi.write(self.spi_write_osd)
@@ -173,24 +193,26 @@ class disk2:
   def show_dir_line(self, y):
     if y < 0 or y >= self.screen_y:
       return
-    highlight = 0
+    mark = 0
+    invert = 0
     if y == self.fb_cursor - self.fb_topitem:
-      highlight = 1
+      mark = 1
+      invert = 1
     if y == self.fb_selected - self.fb_topitem:
-      highlight = 2
+      mark = 2
     i = y+self.fb_topitem
     if i >= len(self.direntries):
-      self.osd_print(0,y,"%64s" % "")
+      self.osd_print(0,y,0,"%64s" % "")
       return
     if self.direntries[i][1]: # directory
-      self.osd_print(0,y,"%c%-57s     D" % (self.highlight[highlight],self.direntries[i][0]))
+      self.osd_print(0,y,invert,"%c%-57s     D" % (self.mark[mark],self.direntries[i][0]))
     else: # file
       mantissa = self.direntries[i][2]
       exponent = 0
       while mantissa >= 1024:
         mantissa >>= 10
         exponent += 1
-      self.osd_print(0,y,"%c%-57s %4d%c" % (self.highlight[highlight],self.direntries[i][0], mantissa, self.exp_names[exponent]))
+      self.osd_print(0,y,invert,"%c%-57s %4d%c" % (self.mark[mark],self.direntries[i][0], mantissa, self.exp_names[exponent]))
 
   def show_dir(self):
     for i in range(self.screen_y):
@@ -231,27 +253,22 @@ class disk2:
       else:
         self.direntries.append([fname,0,stat[6]]) # file
 
-  def osd(self, a):
-    if len(a) > 0:
-      enable = 1
-    else:
-      enable = 0
-    self.led.on()
-    self.hwspi.write(bytearray([0,0xFE,0,0,0,enable])) # enable OSD
-    self.led.off()
-    if enable:
-      self.led.on()
-      self.hwspi.write(bytearray([0,0xF0,0,0,0])) # write content
-      self.hwspi.write(bytearray(a)) # write content
-      self.led.off()
+  # NOTE: this can be used for debugging
+  #def osd(self, a):
+  #  if len(a) > 0:
+  #    enable = 1
+  #  else:
+  #    enable = 0
+  #  self.led.on()
+  #  self.hwspi.write(bytearray([0,0xFE,0,0,0,enable])) # enable OSD
+  #  self.led.off()
+  #  if enable:
+  #    self.led.on()
+  #    self.hwspi.write(bytearray([0,0xFD,0,0,0])) # write content
+  #    self.hwspi.write(bytearray(a)) # write content
+  #    self.led.off()
 
-# debug to manually write data and
-# check them with *C0EC
-#d.led.on(); d.hwspi.write(bytearray([0xd0,0xb2,0x02,0x59,0x17,0x69,0x91,0x9f]));d.led.off()
-
-#ecp5.prog("apple2.bit.gz")
-gc.collect()
 os.mount(SDCard(slot=3),"/sd")
-#os.chdir("/sd/apple2")
-#d=disk2("/sd/apple2/snack_attack.nib")
-#d=disk2("disk2.nib")
+#ecp5.prog("/sd/nes/bitstreams/nes12f_esp32_darfon.bit")
+gc.collect()
+d=disk2()
