@@ -17,13 +17,13 @@ generic
   C_oled        : boolean := true; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := false; -- onboard micro USB with OTG adapter
-  C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
+  C_kbd_us3     : boolean := true; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  C_kbd_esp32   : boolean := true;  -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
+  C_kbd_esp32   : boolean := false;  -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
   -- USB joystick at (enable one of):
-  C_joy_us2     : boolean := true;  -- onboard micro USB with OTG adapter
+  C_joy_us2     : boolean := false;  -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us4     : boolean := true; -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
@@ -523,6 +523,10 @@ begin
     signal R_btn_debounce: unsigned(19 downto 0); -- 26Hz btn debounce
   begin
   E_disk2_spi_slave: entity work.spirw_slave
+  generic map
+  (
+    c_addr_bits => 16
+  )
   port map
   (
     clk                 => CLK_14M,
