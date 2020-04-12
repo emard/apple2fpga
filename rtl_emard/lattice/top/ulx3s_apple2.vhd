@@ -14,16 +14,16 @@ use ecp5u.components.all;
 entity ulx3s_apple2 is
 generic
 (
-  C_oled        : boolean := true; -- OLED display HEX debug
+  C_oled        : boolean := false; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
-  C_kbd_us2     : boolean := true; -- onboard micro USB with OTG adapter
+  C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  C_kbd_esp32   : boolean := false;  -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
+  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (wifi_gpio16=clk, wifi_gpio17=data)
   -- USB joystick at (enable one of):
-  C_joy_us2     : boolean := false;  -- onboard micro USB with OTG adapter
-  C_joy_us3     : boolean := true; -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
+  C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
+  C_joy_us4     : boolean := true;  -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
@@ -161,28 +161,28 @@ architecture Behavioral of ulx3s_apple2 is
   signal S_hid_report_decoded: T_report_decoded;
 
   -- PMOD with US3 and US4
-  -- ULX3S pins up and flat cable: swap GP/GN and invert differential input
   -- ULX3S direct or pins down and flat cable: don't swap GP/GN, normal differential input
+  -- ULX3S pins up and flat cable: swap GP/GN and invert differential input
 
-  alias us3_fpga_bd_dp: std_logic is gn(25);
-  alias us3_fpga_bd_dn: std_logic is gp(25);
+  alias us3_fpga_bd_dp: std_logic is gp(25);
+  alias us3_fpga_bd_dn: std_logic is gn(25);
 
-  alias us4_fpga_bd_dp: std_logic is gn(24);
-  alias us4_fpga_bd_dn: std_logic is gp(24);
-  
-  alias us4_fpga_pu_dp: std_logic is gn(23);
-  alias us4_fpga_pu_dn: std_logic is gp(23);
-  
-  alias us3_fpga_pu_dp: std_logic is gn(22);
-  alias us3_fpga_pu_dn: std_logic is gp(22);
+  alias us3_fpga_pu_dp: std_logic is gp(22);
+  alias us3_fpga_pu_dn: std_logic is gn(22);
 
-  alias us3_fpga_n_dp: std_logic is gp(21); -- flat cable
-  signal us3_fpga_dp: std_logic; -- flat cable
-  --alias us3_fpga_dp: std_logic is gp(21); -- direct
+  --alias us3_fpga_n_dp: std_logic is gp(21); -- pins up flat cable
+  --signal us3_fpga_dp: std_logic; -- pins up flat cable
+  alias us3_fpga_dp: std_logic is gp(21); -- direct
 
-  alias us4_fpga_n_dp: std_logic is gp(20); -- flat cable
-  signal us4_fpga_dp: std_logic; -- flat cable
-  --alias us4_fpga_dp: std_logic is gp(20); -- direct
+  alias us4_fpga_bd_dp: std_logic is gp(24);
+  alias us4_fpga_bd_dn: std_logic is gn(24);
+
+  alias us4_fpga_pu_dp: std_logic is gp(23);
+  alias us4_fpga_pu_dn: std_logic is gn(23);
+
+  --alias us4_fpga_n_dp: std_logic is gp(20); -- pins up flat cable
+  --signal us4_fpga_dp: std_logic; -- pins up flat cable
+  alias us4_fpga_dp: std_logic is gp(20); -- direct
 
 begin
   -- 60Hz frame rate
@@ -306,6 +306,7 @@ begin
   us2_hid_host_inst: entity usbh_host_hid
   generic map
   (
+    C_report_length_strict => '1',
     C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
   )
   port map
@@ -323,10 +324,11 @@ begin
   G_us3: if C_joy_us3 generate
   us3_fpga_pu_dp <= '0';
   us3_fpga_pu_dn <= '0';
-  us3_fpga_dp <= not us3_fpga_n_dp; -- flat cable
+  --us3_fpga_dp <= not us3_fpga_n_dp; -- pins up flat cable
   us3_hid_host_inst: entity usbh_host_hid
   generic map
   (
+    C_report_length_strict => '1',
     C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
   )
   port map
@@ -344,10 +346,11 @@ begin
   G_us4: if C_joy_us4 generate
   us4_fpga_pu_dp <= '0';
   us4_fpga_pu_dn <= '0';
-  us4_fpga_dp <= not us4_fpga_n_dp; -- flat cable
+  --us4_fpga_dp <= not us4_fpga_n_dp; -- pins up flat cable
   us4_hid_host_inst: entity usbh_host_hid
   generic map
   (
+    C_report_length_strict => '1',
     C_usb_speed => '0' -- '0':Low-speed '1':Full-speed
   )
   port map
@@ -474,8 +477,8 @@ begin
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
-  led(0) <= D1_ACTIVE;
-  led(1) <= D2_ACTIVE;
+  --led(0) <= D1_ACTIVE;
+  --led(1) <= D2_ACTIVE;
   end generate; -- apple2_disk
   
   G_not_apple2_disk: if not C_apple2_disk generate
