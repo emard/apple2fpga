@@ -513,7 +513,7 @@ begin
   G_disk2_spi_slave: if C_esp32 generate
   B_disk2_spi_slave: block
     signal spi_rd, spi_wr: std_logic;
-    signal spi_addr: std_logic_vector(15 downto 0);
+    signal spi_addr: std_logic_vector(31 downto 0);
     signal spi_data_out, spi_data_in: std_logic_vector(7 downto 0);
     signal R_btn, R_btn_latch: std_logic_vector(btn'range);
     signal R_track : unsigned(track'range);
@@ -525,7 +525,7 @@ begin
   E_disk2_spi_slave: entity work.spirw_slave
   generic map
   (
-    c_addr_bits => 16
+    c_addr_bits => 32
   )
   port map
   (
@@ -542,7 +542,7 @@ begin
     data_in             => spi_data_in,
     data_out            => spi_data_out
   );
-  TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(15 downto 14) = "00" else '0'; -- write disk track to 0x0000
+  TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(31 downto 30) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   track_ram_di <= unsigned(spi_data_out);
   -- read: 0x0000 track and irq state, 0xFE00 btn state
@@ -558,7 +558,7 @@ begin
   begin
     if rising_edge(CLK_14M) then
       if spi_rd = '1' then
-        case spi_addr(15 downto 14) is
+        case spi_addr(31 downto 30) is
           when "00" => -- reading track number resets IRQ state
             spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK);
           when others =>
@@ -572,7 +572,7 @@ begin
   begin
     if rising_edge(CLK_14M) then
       R_spi_rd <= spi_rd;
-      if spi_rd = '0' and R_spi_rd = '1' and spi_addr(15 downto 14) = "00" then -- reading track number resets IRQ state
+      if spi_rd = '0' and R_spi_rd = '1' and spi_addr(31 downto 30) = "00" then -- reading track number resets IRQ state
         R_track_irq <= '0';
         R_btn_irq <= '0';
       else

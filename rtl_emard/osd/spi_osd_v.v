@@ -30,12 +30,12 @@ module spi_osd_v
       $readmemh(c_char_file, tile_map);
 
     wire ram_wr;
-    wire [15:0] ram_addr;
+    wire [31:0] ram_addr;
     wire [7:0] ram_di;
     reg  [7:0] ram_do;
     spirw_slave_v
     #(
-        .c_addr_bits(16),
+        .c_addr_bits(32),
         .c_sclk_capable_pin(1'b0)
     )
     spirw_slave_inst
@@ -52,7 +52,7 @@ module spi_osd_v
     );
     always @(posedge clk_pixel)
     begin
-      if(ram_wr & (ram_addr[15:14] == 2'b11))
+      if(ram_wr & (ram_addr[31:30] == 2'b11))
         tile_map[ram_addr] <= ram_di; // write to 0xF000-0xF4FF for OSD
       //ram_do <= tile_map[ram_addr];
     end
@@ -60,7 +60,7 @@ module spi_osd_v
     reg osd_en = c_init_on;
     always @(posedge clk_pixel)
     begin
-      if(ram_wr && (ram_addr[15:8]==16'hFE)) // write to 0xFE00 enables/disables OSD
+      if(ram_wr && (ram_addr[31:24]==16'hFE)) // write to 0xFE00 enables/disables OSD
         osd_en <= ram_di[0];
     end
 
