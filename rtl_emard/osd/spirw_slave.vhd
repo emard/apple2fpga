@@ -17,7 +17,7 @@ entity spirw_slave is
     csn, sclk, mosi : in    std_logic;
     miso            : inout std_logic;
     rd, wr          : out   std_logic;
-    addr            : out   std_logic_vector(15 downto 0);
+    addr            : out   std_logic_vector(c_addr_bits-1 downto 0);
     data_in         : in    std_logic_vector(7 downto 0);
     data_out        : out   std_logic_vector(7 downto 0)
   );
@@ -36,7 +36,7 @@ architecture syn of spirw_slave is
     csn, sclk, mosi : in    std_logic;
     miso            : inout std_logic;
     rd, wr          : out   std_logic;
-    addr            : out   std_logic_vector(15 downto 0);
+    addr            : out   std_logic_vector(c_addr_bits-1 downto 0);
     data_in         : in    std_logic_vector(7 downto 0);
     data_out        : out   std_logic_vector(7 downto 0)
   );
