@@ -477,8 +477,8 @@ begin
     ram_di         => TRACK_RAM_DI,
     ram_we         => TRACK_RAM_WE
     );
-  --led(0) <= D1_ACTIVE;
-  --led(1) <= D2_ACTIVE;
+  led(0) <= D1_ACTIVE;
+  led(1) <= D2_ACTIVE;
   end generate; -- apple2_disk
   
   G_not_apple2_disk: if not C_apple2_disk generate
