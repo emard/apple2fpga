@@ -151,7 +151,7 @@ class disk2:
   @micropython.viper
   def osd_print(self, x:int, y:int, text):
     p8msg=ptr8(addressof(self.spi_write_osd))
-    a=0xF000+(x&63)+((y&31)<<6)
+    a=(x&63)+((y&31)<<6)
     p8msg[3]=a>>8
     p8msg[4]=a
     self.led.on()
@@ -162,7 +162,7 @@ class disk2:
   @micropython.viper
   def osd_cls(self):
     p8msg=ptr8(addressof(self.spi_write_osd))
-    p8msg[3]=0xF0
+    p8msg[3]=0
     p8msg[4]=0
     self.led.on()
     self.hwspi.write(self.spi_write_osd)
