@@ -58,7 +58,7 @@ VHDL_FILES = \
   ../../../rtl_emard/usb/usbhost/usbh_host_hid.vhd \
   ../../../rtl_emard/usb/usbhost/usbh_sie_vhdl.vhd \
   ../../../rtl_emard/usb/usbhid/report_decoded_pack_generic.vhd \
-  ../../../rtl_emard/usb/usbhid/usbhid_report_decoder_saitek_joystick.vhd \
+  ../../../rtl_emard/usb/usbhid/usbhid_report_decoder_darfon_joystick.vhd \
   ../../../apple2.vhd \
   ../../../timing_generator.vhd \
   ../../../main_roms.vhd \
