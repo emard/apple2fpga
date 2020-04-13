@@ -327,6 +327,7 @@ begin
   us3_fpga_pu_dp <= '0';
   us3_fpga_pu_dn <= '0';
   --us3_fpga_dp <= not us3_fpga_n_dp; -- pins up flat cable
+  us3_fpga_dp <= 'Z'; -- pins down flat cable
   us3_hid_host_inst: entity usbh_host_hid
   generic map
   (
@@ -349,6 +350,7 @@ begin
   us4_fpga_pu_dp <= '0';
   us4_fpga_pu_dn <= '0';
   --us4_fpga_dp <= not us4_fpga_n_dp; -- pins up flat cable
+  us4_fpga_dp <= 'Z'; -- pins down flat cable
   us4_hid_host_inst: entity usbh_host_hid
   generic map
   (
@@ -388,9 +390,9 @@ begin
   );
   GAMEPORT(3 downto 0) <=
   (
-    S_hid_report_decoded.btn_rbumper &
-    S_hid_report_decoded.btn_ltrigger &
-    S_hid_report_decoded.btn_rtrigger
+    (S_hid_report_decoded.btn_rbumper  or S_hid_report_decoded.btn_start) &
+    (S_hid_report_decoded.btn_ltrigger or S_hid_report_decoded.btn_b or S_hid_report_decoded.btn_x) &
+    (S_hid_report_decoded.btn_rtrigger or S_hid_report_decoded.btn_a or S_hid_report_decoded.btn_y)
   ) & "0"; -- last 0 is for cassette (not used, we have floppy)
 
   vga : entity work.vga_controller port map (
