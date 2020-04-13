@@ -89,7 +89,7 @@ class disk2:
         if btn==1:
           p8enable[0]&=1 # clear bit that waits for all BTNs released
       else: # all BTNs released
-        if (btn&0x78)==0x78: # all cursor BTNs pressed at the same time
+        if btn==3 or (btn&0x78)==0x78: # BTN1 or all cursor BTNs pressed at the same time
           self.show_dir() # refresh directory
           p8enable[0]=(p8enable[0]^1)|2;
           self.osd_enable(p8enable[0]&1)
@@ -270,6 +270,6 @@ class disk2:
   #    self.led.off()
 
 os.mount(SDCard(slot=3),"/sd")
-#ecp5.prog("/sd/nes/bitstreams/nes12f_esp32_darfon.bit")
+ecp5.prog("/sd/apple2/bitstreams/apple2esp32_us4darfon_12f.bit")
 gc.collect()
 d=disk2()
