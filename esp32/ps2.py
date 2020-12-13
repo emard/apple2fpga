@@ -10,7 +10,7 @@ from micropython import const
 from uctypes import addressof
 
 class ps2:
-  def __init__(self, kbd_clk=26, kbd_data=25, mouse_clk=17, mouse_data=16, qbit_us=16, byte_us=150):
+  def __init__(self, kbd_clk=26, kbd_data=25, mouse_clk=17, mouse_data=16, qbit_us=16, byte_us=150, f0delay_us=0):
     self.gpio_kbd_clk    = kbd_clk
     self.gpio_kbd_data   = kbd_data
     self.gpio_mouse_clk  = mouse_clk
@@ -18,6 +18,7 @@ class ps2:
     self.keyboard()
     self.qbit_us = qbit_us # quarter-bit delay
     self.byte_us = byte_us # byte-to-byte delay
+    self.f0delay_us = f0delay_us   # additional delay before 0xF0 and a after a byte after 0xF0
 
   def keyboard(self):
     self.ps2_clk  = Pin(self.gpio_kbd_clk,  Pin.OPEN_DRAIN, Pin.PULL_UP)
@@ -34,10 +35,15 @@ class ps2:
   @micropython.viper
   def write(self, data):
     qbit_us = int(self.qbit_us)
+    f0delay = int(self.f0delay_us)
+    f0c = 0
     p = ptr8(addressof(data))
     l = int(len(data))
     for i in range(l):
       val = p[i]
+      if val == 0xF0 and f0delay > 0:
+        sleep_us(f0delay)
+        f0c = 2
       parity = 1
       self.ps2_data.off()
       sleep_us(qbit_us)
@@ -73,3 +79,7 @@ class ps2:
       sleep_us(qbit_us+qbit_us)
       self.ps2_clk.on()
       sleep_us(self.byte_us)
+      if f0c > 0:
+        f0c -= 1
+        if f0c == 0:
+          sleep_us(f0delay)
