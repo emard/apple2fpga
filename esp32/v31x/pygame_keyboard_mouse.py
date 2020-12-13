@@ -196,11 +196,10 @@ while(True):
   if mouse_wheel:
     # mouse with wheel
     report = mouse_wheel_report(dx, dy, dz, btn_left, btn_middle, btn_right)
-    ps2_tcp.sendall(bytearray(report))
     #print("0x%08X: X=%4d, Y=%4d, Z=%2d, L=%2d, M=%2d, R=%2d" % (struct.unpack("I",report)[0], dx, dy, dz, btn_left, btn_middle, btn_right))
   else:
     # mouse without wheel
     report = mouse_nowheel_report(dx, dy, btn_left, btn_middle, btn_right)
-    ps2_tcp.sendall(bytearray(report))
     #print(report)
     #print("X=%4d, Y=%4d, L=%2d, M=%2d, R=%2d" % (dx, dy, btn_left, btn_middle, btn_right))
+  #ps2_tcp.sendall(bytearray(report))
