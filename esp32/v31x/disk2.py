@@ -46,8 +46,7 @@ class disk2:
     self.init_pinout_sd()
     self.cs = Pin(self.gpio_cs, Pin.OUT)
     self.cs.off()
-    self.led = Pin(self.gpio_led, Pin.OUT)
-    self.led.on()
+    self.led = Pin(self.gpio_led, Pin.IN)
     self.spi_freq = const(2000000)
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
     alloc_emergency_exception_buf(100)
@@ -70,7 +69,7 @@ class disk2:
     self.cs.on()
     self.hwspi.write_readinto(self.spi_read_irq, self.spi_result)
     self.cs.off()
-    self.led.off()
+    self.led.init(Pin.OUT)
     flag_irq = p8result[6]
     if flag_irq & 0xC0: # 0x40 track change event or 0x80 BTN event
      # after track change, BTN will normally be released new data uploaded
@@ -107,7 +106,7 @@ class disk2:
             self.updir()
           if btn==65: # btn6 cursor right
             self.select_entry()
-    self.led.on()
+    self.led.init(Pin.IN)
 
   def start_autorepeat(self, i:int):
     self.autorepeat_direction=i
