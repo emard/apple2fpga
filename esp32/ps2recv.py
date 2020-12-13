@@ -14,7 +14,20 @@ from micropython import alloc_emergency_exception_buf
 import ps2
 
 # keyboard
-ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=50000,n=0)
+ps2port=ps2.ps2(
+  # v3.0.x
+  kbd_clk    = 26, # gp[11]
+  kbd_data   = 25, # gn[11]
+  mouse_clk  = 26, #
+  mouse_data = 25, #
+  # v3.1.4
+  #kbd_clk    = 22, # wifi_gpio22
+  #kbd_data   = 21, # wifi_gpio21
+  #mouse_clk  = 22, # wifi_gpio27
+  #mouse_data = 21, # wifi_gpio26
+  qbit_us=16,
+  byte_us=150
+)
 
 # 3-byte mouse (PS/2 legacy, no wheel)
 #ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=0,n=3,n_us=1000)
