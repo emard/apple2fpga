@@ -35,10 +35,10 @@ class disk2:
     self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
     self.spi_write_osd = bytearray([0,0xFD,0,0,0])
     self.spi_write_track = bytearray([0,0,0,0,0])
-    for i in bytearray([2,4,12,13,14,15]):
-      p=Pin(i,Pin.IN)
-      a=p.value()
-      del p, a
+    #for i in bytearray([2,4,12,13,14,15]):
+    #  p=Pin(i,Pin.IN)
+    #  a=p.value()
+    #  del p, a
     self.cs = Pin(5, Pin.OUT)
     self.cs.off()
     self.spi_channel = const(2)
