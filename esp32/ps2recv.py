@@ -9,17 +9,19 @@ import socket
 import network
 import uos
 import gc
-from time import sleep_ms, localtime
+from time import sleep_us
+from struct import unpack
 from micropython import alloc_emergency_exception_buf
+from micropython import const
+from uctypes import addressof
 import ps2
 
-# keyboard
 ps2port=ps2.ps2(
   # v3.0.x
   kbd_clk    = 26, # gp[11]
   kbd_data   = 25, # gn[11]
-  mouse_clk  = 26, #
-  mouse_data = 25, #
+  mouse_clk  = 26, # wifi_gpio17
+  mouse_data = 25, # wifi_gpio16
   # v3.1.4
   #kbd_clk    = 22, # wifi_gpio22
   #kbd_data   = 21, # wifi_gpio21
@@ -28,12 +30,6 @@ ps2port=ps2.ps2(
   qbit_us=16,
   byte_us=150
 )
-
-# 3-byte mouse (PS/2 legacy, no wheel)
-#ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=0,n=3,n_us=1000)
-
-# 4-byte mouse (PS/2 with wheel)
-#ps2port=ps2.ps2(qbit_us=16,byte_us=150,f0_us=0,n=4,n_us=1000)
 
 # constant definitions
 _SO_REGISTER_HANDLER = const(20)
@@ -45,6 +41,7 @@ client_list = []
 verbose_l = 0
 client_busy = False
 
+mouse = 0 # global tracker: 0 keyboard, 1 mouse
 
 class PS2_client:
 
@@ -56,18 +53,58 @@ class PS2_client:
         self.command_client.setsockopt(socket.SOL_SOCKET,
                                        _SO_REGISTER_HANDLER,
                                        self.exec_ps2_command)
-        self.act_data_addr = self.remote_addr
-        self.active = True
+        # simple PS/2 packet parser state
+        self.state = 0
+        self.length = 0
+        self.index = 0
+        self.wait = 0 # 0 sending, 1 waiting
+        self.packet = bytearray(256)
+
+    def packet_parser(self, data):
+        global mouse
+        for val in data:
+            if self.state == 0: # K/M/W
+                if val == 75: # K
+                    if mouse != 0:
+                        mouse = 0
+                        ps2port.keyboard()
+                    self.state = 1
+                #if val == 77: # M
+                #    if mouse != 1:
+                #        mouse = 1
+                #        ps2port.mouse()
+                #    self.state = 1
+                if val == 87: # W
+                    self.wait = 1
+                    self.state = 1
+                continue
+            if self.state == 1: # length
+                self.length = val
+                self.index = 0
+                self.state = 2
+                continue
+            if self.state == 2: # packet data
+                self.packet[self.index] = val
+                self.index += 1
+                if self.index >= self.length:
+                  if self.wait:
+                    sleep_us(unpack("<H", self.packet[0:2])[0])
+                    self.wait = 0
+                  else:
+                    ps2port.write(self.packet[0:self.length])
+                  self.state = 0
+                continue
+
 
     def exec_ps2_command(self, cl):
         global client_busy
         global my_ip_addr
         global ps2port
 
-        try:
-            gc.collect()
+        if True:
+            #gc.collect()
 
-            data = cl.recv(32)
+            data = cl.recv(64)
 
             if len(data) <= 0:
                 # No data, close
@@ -76,15 +113,12 @@ class PS2_client:
                 return
 
             if client_busy:  # check if another client is busy
-                #cl.sendall("400 Device busy.\r\n")  # tell so the remote client
                 return  # and quit
 
             client_busy = True  # now it's my turn
-            ps2port.write(data)
+            self.packet_parser(data)
             client_busy = False
             return
-        except Exception as err:
-            log_msg(1, "Exception in exec_ps2_command: {}".format(err))
 
 
 def log_msg(level, *args):
@@ -160,7 +194,7 @@ def start(port=3252, verbose=0, splash=True):
 
 def restart(port=3252, verbose=0, splash=True):
     stop()
-    sleep_ms(200)
+    sleep_us(200000)
     start(port, verbose, splash)
 
 
