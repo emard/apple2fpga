@@ -22,6 +22,22 @@ client_list = []
 verbose_l = 0
 client_busy = False
 
+ps2port=ps2.ps2(
+      # v3.0.x
+      kbd_clk    = 26, # gp[11]
+      kbd_data   = 25, # gn[11]
+      mouse_clk  = 26, #
+      mouse_data = 25, #
+      # v3.1.4
+      #kbd_clk    = 22, # wifi_gpio22
+      #kbd_data   = 21, # wifi_gpio21
+      #mouse_clk  = 22, # wifi_gpio27
+      #mouse_data = 21, # wifi_gpio26
+      qbit_us=16,
+      byte_us=150,
+      f0delay_us=50000
+    )
+
 # ASCII to PS/2 SET2 scancode conversion table
 # from http://www.vetra.com/scancodes.html
 asc2scan = {
@@ -195,6 +211,7 @@ class PS2_client:
                                        self.exec_ps2_command)
         self.act_data_addr = self.remote_addr
         self.active = True
+        alloc_emergency_exception_buf(100)
 
     def exec_ps2_command(self, cl):
         global client_busy
@@ -221,11 +238,9 @@ class PS2_client:
             sdata = str(data, "utf-8")
             for cdata in sdata:
               if cdata in asc2scan:
-                #code = asc2scan[cdata]
-                ps2port.write(asc2scan[cdata])
-                #for scancode in code:
-                #  ps2port.write(bytearray([scancode]))
-                #  sleep_ms(20)
+                packet=asc2scan[cdata]
+                #print(packet)
+                ps2port.write(packet)
             cl.sendall(data)
             client_busy = False
             return
@@ -290,23 +305,7 @@ def start(port=23, verbose=0, splash=True):
     global client_list
     global client_busy
     global ps2port
-    
-    ps2port=ps2.ps2(
-      # v3.0.x
-      kbd_clk    = 26, # gp[11]
-      kbd_data   = 25, # gn[11]
-      mouse_clk  = 26, #
-      mouse_data = 25, #
-      # v3.1.4
-      #kbd_clk    = 22, # wifi_gpio22
-      #kbd_data   = 21, # wifi_gpio21
-      #mouse_clk  = 22, # wifi_gpio27
-      #mouse_data = 21, # wifi_gpio26
-      qbit_us=16,
-      byte_us=150
-    )
 
-    alloc_emergency_exception_buf(100)
     verbose_l = verbose
     client_list = []
     client_busy = False
@@ -318,11 +317,9 @@ def start(port=23, verbose=0, splash=True):
     ps2socket.setsockopt(socket.SOL_SOCKET,
                          _SO_REGISTER_HANDLER, accept_ps2_connect)
 
-
 def restart(port=23, verbose=0, splash=True):
     stop()
-    sleep_ms(200)
+    sleep_ms(200000)
     start(port, verbose, splash)
-
 
 start(splash=True)
