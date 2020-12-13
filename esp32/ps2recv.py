@@ -177,7 +177,6 @@ def start(port=3252, verbose=0, splash=True):
     global client_list
     global client_busy
     global ps2port
-    
 
     alloc_emergency_exception_buf(100)
     verbose_l = verbose
