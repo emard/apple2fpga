@@ -11,7 +11,7 @@ use work.report_decoded_pack.all;
 library ecp5u;
 use ecp5u.components.all;
 
-entity ulx3s_apple2 is
+entity ulx3s_v20_apple2 is
 generic
 (
   C_oled        : boolean := false; -- OLED display HEX debug
@@ -88,7 +88,7 @@ port
 );
 end;
 
-architecture Behavioral of ulx3s_apple2 is
+architecture Behavioral of ulx3s_v20_apple2 is
   signal S_oled: std_logic_vector(63 downto 0);
   signal S_enable: std_logic;
 
