@@ -39,8 +39,8 @@ class disk2:
       p=Pin(i,Pin.IN)
       a=p.value()
       del p, a
-    self.led = Pin(5, Pin.OUT)
-    self.led.off()
+    self.cs = Pin(5, Pin.OUT)
+    self.cs.off()
     self.spi_channel = const(2)
     self.init_pinout_sd()
     self.spi_freq = const(2000000)
@@ -68,9 +68,9 @@ class disk2:
   @micropython.viper
   def irq_handler(self, pin):
     p8result = ptr8(addressof(self.spi_result))
-    self.led.on()
+    self.cs.on()
     self.hwspi.write_readinto(self.spi_read_irq, self.spi_result)
-    self.led.off()
+    self.cs.off()
     flag_irq = p8result[6]
     if flag_irq & 0xC0: # 0x40 track change event or 0x80 BTN event
      # after track change, BTN will normally be released new data uploaded
@@ -78,14 +78,14 @@ class disk2:
       track = flag_irq & 0x3F
       self.diskfile.seek(6656 * track)
       self.diskfile.readinto(self.trackbuf)
-      self.led.on()
+      self.cs.on()
       self.hwspi.write(self.spi_write_track)
       self.hwspi.write(self.trackbuf)
-      self.led.off()
+      self.cs.off()
     if flag_irq & 0x80: # BTN event
-      self.led.on()
+      self.cs.on()
       self.hwspi.write_readinto(self.spi_read_btn, self.spi_result)
-      self.led.off()
+      self.cs.off()
       btn = p8result[6]
       p8enable = ptr8(addressof(self.enable))
       if p8enable[0]&2: # wait to release all BTNs
@@ -167,9 +167,9 @@ class disk2:
   def osd_enable(self, en:int):
     pena = ptr8(addressof(self.spi_enable_osd))
     pena[5] = en&1
-    self.led.on()
+    self.cs.on()
     self.hwspi.write(self.spi_enable_osd)
-    self.led.off()
+    self.cs.off()
 
   @micropython.viper
   def osd_print(self, x:int, y:int, i:int, text):
@@ -178,20 +178,20 @@ class disk2:
     p8msg[2]=i
     p8msg[3]=a>>8
     p8msg[4]=a
-    self.led.on()
+    self.cs.on()
     self.hwspi.write(self.spi_write_osd)
     self.hwspi.write(text)
-    self.led.off()
+    self.cs.off()
 
   @micropython.viper
   def osd_cls(self):
     p8msg=ptr8(addressof(self.spi_write_osd))
     p8msg[3]=0xF0
     p8msg[4]=0
-    self.led.on()
+    self.cs.on()
     self.hwspi.write(self.spi_write_osd)
     self.hwspi.read(1280,32)
-    self.led.off()
+    self.cs.off()
 
   # y is actual line on the screen
   def show_dir_line(self, y):
@@ -263,14 +263,14 @@ class disk2:
   #    enable = 1
   #  else:
   #    enable = 0
-  #  self.led.on()
+  #  self.cs.on()
   #  self.hwspi.write(bytearray([0,0xFE,0,0,0,enable])) # enable OSD
-  #  self.led.off()
+  #  self.cs.off()
   #  if enable:
-  #    self.led.on()
+  #    self.cs.on()
   #    self.hwspi.write(bytearray([0,0xFD,0,0,0])) # write content
   #    self.hwspi.write(bytearray(a)) # write content
-  #    self.led.off()
+  #    self.cs.off()
 
 #os.mount(SDCard(slot=3),"/sd")
 #import ecp5
