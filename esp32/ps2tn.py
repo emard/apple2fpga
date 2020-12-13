@@ -291,7 +291,20 @@ def start(port=23, verbose=0, splash=True):
     global client_busy
     global ps2port
     
-    ps2port=ps2.ps2(clk=26,data=25,qbit_us=16,byte_us=150,f0_us=50000)
+    ps2port=ps2.ps2(
+      # v3.0.x
+      kbd_clk    = 26, # gp[11]
+      kbd_data   = 25, # gn[11]
+      mouse_clk  = 26, #
+      mouse_data = 25, #
+      # v3.1.4
+      #kbd_clk    = 22, # wifi_gpio22
+      #kbd_data   = 21, # wifi_gpio21
+      #mouse_clk  = 22, # wifi_gpio27
+      #mouse_data = 21, # wifi_gpio26
+      qbit_us=16,
+      byte_us=150
+    )
 
     alloc_emergency_exception_buf(100)
     verbose_l = verbose
