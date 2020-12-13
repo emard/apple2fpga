@@ -16,14 +16,14 @@ generic
 (
   C_oled        : boolean := false; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
-  C_kbd_us2     : boolean := false;  -- onboard micro USB with OTG adapter
+  C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
   C_kbd_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
-  C_kbd_esp32   : boolean := true; -- ESP32->PS2 (wifi_gpio22=clk, wifi_gpio21=data)
+  C_kbd_esp32   : boolean := false; -- ESP32->PS2 (wifi_gpio22=clk, wifi_gpio21=data)
   -- USB joystick at (enable one of):
   C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4     : boolean := true;  -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us4     : boolean := false;  -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
@@ -48,13 +48,13 @@ port
   wifi_txd: in    std_logic;
   -- WiFi additional signaling
   wifi_en: inout  std_logic; -- '0' will disable wifi by default
-  wifi_gpio0: inout std_logic; -- slave request irq
-  wifi_gpio19: inout std_logic;
+  wifi_gpio0: inout std_logic; -- spi slave request irq
+  wifi_gpio19: inout std_logic; -- spi slave en
   wifi_gpio21: inout std_logic; -- ps2 kbd data
   wifi_gpio22: inout std_logic; -- ps2 kbd clk
-  wifi_gpio26: inout std_logic; -- spi slave cs
-  wifi_gpio27: inout std_logic; -- spi slave clk
-  wifi_gpio35: inout std_logic;
+  wifi_gpio26: inout std_logic; -- spi slave clk
+  wifi_gpio27: inout std_logic;
+  --wifi_gpio35: inout std_logic;
 
   -- Onboard blinky
   led: out std_logic_vector(7 downto 0);
@@ -543,7 +543,7 @@ begin
     clk                 => CLK_14M,
 
     csn                 => spi_csn,
-    sclk                => wifi_gpio27, --              -- sd_clk,   -- wifi_gpio14
+    sclk                => wifi_gpio26, --              -- sd_clk,   -- wifi_gpio14
     mosi                => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
     miso                => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
 
@@ -643,7 +643,7 @@ begin
   vga_blank <= not vga_nblank;
   vga_hsync <= not vga_hs;
   vga_vsync <= not vga_vs;
-  spi_csn <= not wifi_gpio26;
+  spi_csn <= not wifi_gpio19;
 
   -- SPI OSD pipeline
   spi_osd_inst: entity work.spi_osd
@@ -662,7 +662,7 @@ begin
     i_g => std_logic_vector(vga_g(9 downto 2)),
     i_b => std_logic_vector(vga_b(9 downto 2)),
     i_hsync => vga_hsync, i_vsync => vga_vsync, i_blank => vga_blank,
-    i_csn => spi_csn, i_sclk => wifi_gpio27, i_mosi => sd_d(1), o_miso => open,
+    i_csn => spi_csn, i_sclk => wifi_gpio26, i_mosi => sd_d(1), o_miso => open,
     o_r => osd_vga_r, o_g => osd_vga_g, o_b => osd_vga_b,
     o_hsync => osd_vga_hsync, o_vsync => osd_vga_vsync, o_blank => osd_vga_blank
   );

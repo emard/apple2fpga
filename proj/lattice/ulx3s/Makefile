@@ -24,8 +24,9 @@ OPENOCD_INTERFACE=$(SCRIPTS)/ft231x.ocd
 
 # ******* design files *******
 CONSTRAINTS = ../constraints/ulx3s_v20_difgpdi.lpf
-#TOP_MODULE = ulx3s_apple2
 TOP_MODULE = ulx3s_apple2
+#CONSTRAINTS = ../constraints/ulx3s_v31.lpf
+#TOP_MODULE = ulx3s_v31_apple2
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
 
 CLK0_NAME = clk_25_shift_pixel_v

@@ -16,7 +16,6 @@ from micropython import const, alloc_emergency_exception_buf
 from uctypes import addressof
 import os
 
-import ecp5
 import gc
 
 class disk2:
@@ -36,6 +35,10 @@ class disk2:
     self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
     self.spi_write_osd = bytearray([0,0xFD,0,0,0])
     self.spi_write_track = bytearray([0,0,0,0,0])
+    for i in bytearray([2,4,12,13,14,15]):
+      p=Pin(i,Pin.IN)
+      a=p.value()
+      del p, a
     self.led = Pin(5, Pin.OUT)
     self.led.off()
     self.spi_channel = const(2)
@@ -269,7 +272,8 @@ class disk2:
   #    self.hwspi.write(bytearray(a)) # write content
   #    self.led.off()
 
-os.mount(SDCard(slot=3),"/sd")
-ecp5.prog("/sd/apple2/bitstreams/apple2esp32_us4darfon_12f.bit")
+#os.mount(SDCard(slot=3),"/sd")
+#import ecp5
+#ecp5.prog("/sd/apple2/bitstreams/apple2esp32_us4darfon_12f.bit")
 gc.collect()
 d=disk2()

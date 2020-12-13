@@ -14,12 +14,18 @@
 from machine import SPI, Pin, SDCard, Timer
 from micropython import const, alloc_emergency_exception_buf
 from uctypes import addressof
-import os
-
-import ecp5
-import gc
+import os,gc
 
 class disk2:
+  @micropython.viper
+  def init_pinout_sd(self):
+    self.gpio_irq  = const(0)
+    self.gpio_cs   = const(19)
+    self.gpio_sck  = const(26)
+    self.gpio_mosi = const(4)
+    self.gpio_miso = const(12)
+    self.gpio_led  = const(5) # inverse logic
+
   def __init__(self):
     self.screen_x = const(64)
     self.screen_y = const(20)
@@ -36,10 +42,12 @@ class disk2:
     self.spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
     self.spi_write_osd = bytearray([0,0xFD,0,0,0])
     self.spi_write_track = bytearray([0,0,0,0,0])
-    self.cs = Pin(27, Pin.OUT)
-    self.cs.off()
     self.spi_channel = const(2)
     self.init_pinout_sd()
+    self.cs = Pin(self.gpio_cs, Pin.OUT)
+    self.cs.off()
+    self.led = Pin(self.gpio_led, Pin.OUT)
+    self.led.on()
     self.spi_freq = const(2000000)
     self.hwspi=SPI(self.spi_channel, baudrate=self.spi_freq, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=Pin(self.gpio_sck), mosi=Pin(self.gpio_mosi), miso=Pin(self.gpio_miso))
     alloc_emergency_exception_buf(100)
@@ -47,7 +55,7 @@ class disk2:
     self.timer = Timer(3)
     self.irq_handler(0)
     self.irq_handler_ref = self.irq_handler # allocation happens here
-    self.spi_request = Pin(0, Pin.IN, Pin.PULL_UP)
+    self.spi_request = Pin(self.gpio_irq, Pin.IN, Pin.PULL_UP)
     self.spi_request.irq(trigger=Pin.IRQ_FALLING, handler=self.irq_handler_ref)
 
 # init file browser
@@ -57,17 +65,12 @@ class disk2:
     self.fb_selected = -1
 
   @micropython.viper
-  def init_pinout_sd(self):
-    self.gpio_sck  = const(26)
-    self.gpio_mosi = const(4)
-    self.gpio_miso = const(12)
-
-  @micropython.viper
   def irq_handler(self, pin):
     p8result = ptr8(addressof(self.spi_result))
     self.cs.on()
     self.hwspi.write_readinto(self.spi_read_irq, self.spi_result)
     self.cs.off()
+    self.led.off()
     flag_irq = p8result[6]
     if flag_irq & 0xC0: # 0x40 track change event or 0x80 BTN event
      # after track change, BTN will normally be released new data uploaded
@@ -104,6 +107,7 @@ class disk2:
             self.updir()
           if btn==65: # btn6 cursor right
             self.select_entry()
+    self.led.on()
 
   def start_autorepeat(self, i:int):
     self.autorepeat_direction=i
@@ -269,7 +273,9 @@ class disk2:
   #    self.hwspi.write(bytearray(a)) # write content
   #    self.cs.off()
 
-os.mount(SDCard(slot=3),"/sd")
+#os.mount(SDCard(slot=3),"/sd")
+#import ecp5
 #ecp5.prog("/sd/apple2/bitstreams/apple2esp32_us4darfon_12f.bit")
+#ecp5.prog("/sd/apple2/bitstreams/ulx3s_v31_12f_apple2.bit")
 gc.collect()
 d=disk2()
