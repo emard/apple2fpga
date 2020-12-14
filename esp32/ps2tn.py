@@ -1,8 +1,13 @@
 # AUTHOR=EMARD
 # LICENSE=BSD
 
+# unreliable, it works for first telnet connection
+# after ESP32 power on
+
 # telnet to ESP32 and type
 # keystrokes should be converted to PS/2 signals
+# telnet client should receive echo of typed chars
+# if no echo, power off/on ESP32 and retry
 
 import socket
 import network
@@ -239,7 +244,7 @@ class PS2_client:
             for cdata in sdata:
               if cdata in asc2scan:
                 packet=asc2scan[cdata]
-                #print(packet)
+                print(packet)
                 ps2port.write(packet)
             cl.sendall(data)
             client_busy = False
