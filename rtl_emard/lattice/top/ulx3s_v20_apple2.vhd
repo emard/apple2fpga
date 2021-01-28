@@ -7,6 +7,8 @@ use ieee.numeric_std.all;
 
 -- package for usb joystick report decoded structure
 use work.report_decoded_pack.all;
+-- package for LCD initialization
+use work.st7789_init_pack.all;
 
 library ecp5u;
 use ecp5u.components.all;
@@ -14,7 +16,9 @@ use ecp5u.components.all;
 entity ulx3s_v20_apple2 is
 generic
 (
-  C_oled        : boolean := false; -- OLED display HEX debug
+  -- enable none or one of oled options:
+  C_oled_hex    : boolean := false; -- OLED display HEX debug
+  C_oled_vga    : boolean := true; -- LCD ST7789 as display
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
@@ -110,6 +114,8 @@ architecture Behavioral of ulx3s_v20_apple2 is
   VGA_R,                                              -- Red[9:0]
   VGA_G,                                              -- Green[9:0]
   VGA_B : unsigned(9 downto 0);                       -- Blue[9:0]
+
+  signal s_custom_blankn, s_custom_blank: std_logic;
 
   -- invert active LOW sync
   signal vga_hsync, vga_vsync: std_logic;
@@ -220,7 +226,7 @@ begin
 
   S_enable <= not btn(1); -- BTN1 to hold OLED display
 
-  G_oled: if C_oled generate
+  G_oled: if C_oled_hex generate
   oled_inst: entity oled_hex_decoder
   generic map
   (
@@ -646,7 +652,7 @@ begin
   generic map
   (
     c_start_x => 26, c_start_y => 32, -- xy centered
-    c_chars_x => 64, c_chars_y => 20, -- xy size, slightly less than full screen
+    c_char_bits_x => 6, c_chars_y => 20, -- xy size, slightly less than full screen
     c_init_on => 0, -- 1:OSD initially shown without any SPI init
     c_char_file => "osd.mem", -- initial OSD content
     c_font_file => "font_bizcat8x16.mem"
@@ -658,7 +664,7 @@ begin
     i_g => std_logic_vector(vga_g(9 downto 2)),
     i_b => std_logic_vector(vga_b(9 downto 2)),
     i_hsync => vga_hsync, i_vsync => vga_vsync, i_blank => vga_blank,
-    i_csn => spi_csn, i_sclk => wifi_gpio16, i_mosi => sd_d(1), o_miso => open,
+    i_csn => spi_csn, i_sclk => wifi_gpio16, i_mosi => sd_d(1),
     o_r => osd_vga_r, o_g => osd_vga_g, o_b => osd_vga_b,
     o_hsync => osd_vga_hsync, o_vsync => osd_vga_vsync, o_blank => osd_vga_blank
   );
@@ -674,7 +680,9 @@ begin
       clk_pixel => clk_pixel, -- 28 MHz
       clk_shift => clk_pixel_shift, -- 5*28 MHz
 
-      in_red   => osd_vga_r,
+      --in_red   => osd_vga_r,
+      in_red(7) => not s_custom_blank,
+      in_red(6 downto 0) => osd_vga_r(7 downto 1),
       in_green => osd_vga_g,
       in_blue  => osd_vga_b,
 
@@ -695,5 +703,92 @@ begin
   ddr_red:   ODDRX1F port map (D0=>dvid_red(0),   D1=>dvid_red(1),   Q=>gpdi_dp(2), SCLK=>clk_pixel_shift, RST=>'0');
   ddr_green: ODDRX1F port map (D0=>dvid_green(0), D1=>dvid_green(1), Q=>gpdi_dp(1), SCLK=>clk_pixel_shift, RST=>'0');
   ddr_blue:  ODDRX1F port map (D0=>dvid_blue(0),  D1=>dvid_blue(1),  Q=>gpdi_dp(0), SCLK=>clk_pixel_shift, RST=>'0');
+
+  yes_oled_vga: if C_oled_vga generate
+  oled_vga_blk: block
+    constant c_offset_x : natural :=   134; -- x-centering inc->move picture left
+    constant c_offset_y : natural :=     8; -- y-centering inc->move picture up
+    constant c_size_x   : natural := 240*2; -- 280 native
+    constant c_size_y   : natural := 240*2; -- 192 native
+    signal hsyncedge: std_logic_vector(1 downto 0);
+    signal big_blank: std_logic;
+    signal lcd_line_ena, lcd_pixel_ena: std_logic;
+    signal s_vga_lcd_pixel: std_logic_vector(15 downto 0);
+    --signal s_custom_blankn, s_custom_blank: std_logic;
+  begin
+  -- every 2nd line, every 2nd pixel
+  process(clk_pixel)
+  begin
+    if rising_edge(clk_pixel) then
+      hsyncedge <= vga_hsync & hsyncedge(1);
+      if hsyncedge = "10" then
+        lcd_line_ena <= not lcd_line_ena;
+      end if;
+      lcd_pixel_ena <= not lcd_pixel_ena;
+      if vga_hsync = '1' or vga_vsync = '1' then
+        big_blank <= '1';
+      else
+        big_blank <= '0';
+      end if;
+    end if;
+  end process;
+  -- generate custom blank to center xy
+  lcd_custom_blank_inst: entity work.osd_vhd
+  generic map
+  (
+    c_x_start       => c_offset_x,
+    c_x_stop        => c_offset_x+c_size_x+1,
+    c_y_start       => c_offset_y,
+    c_y_stop        => c_offset_y+c_size_y+1,
+    c_x_bits        => 11, -- bits in x counter
+    c_y_bits        => 10, -- bits in y counter
+    c_transparency  =>  0  -- 0 for custom blank
+  )
+  port map
+  (
+    clk_pixel => clk_pixel,
+    clk_pixel_ena => '1',
+    i_r => x"00", i_g => x"00", i_b => x"00",
+    i_hsync => vga_hsync,
+    i_vsync => vga_vsync,
+    i_blank => big_blank,
+    i_osd_en => '0',
+    i_osd_r => x"00", i_osd_g => x"00", i_osd_b => x"00",
+    o_osd_en => s_custom_blankn
+  );
+  s_custom_blank <= (not lcd_line_ena) or (not s_custom_blankn);
+  s_vga_lcd_pixel(15 downto 11) <= std_logic_vector(osd_vga_r(7 downto 3));
+  s_vga_lcd_pixel(10 downto  5) <= std_logic_vector(osd_vga_g(7 downto 2));
+  s_vga_lcd_pixel( 4 downto  0) <= std_logic_vector(osd_vga_b(7 downto 3));
+  lcd_vga_inst: entity work.spi_display
+  generic map
+  (
+    c_clk_spi_mhz  => 28*5,
+    c_reset_us     => 1,
+    c_color_bits   => 16,
+    c_clk_phase    => '0',
+    c_clk_polarity => '1',
+    c_init_seq     => c_st7789_init_seq,
+    c_nop          => x"00"
+  )
+  port map
+  (
+    reset          => btn(1),
+    clk_pixel      => clk_pixel, -- 28 MHz
+    clk_pixel_ena  => lcd_pixel_ena,
+    clk_spi        => clk_pixel_shift, -- 140 MHz
+    clk_spi_ena    => '1',
+    vsync          => vga_vsync,
+    blank          => s_custom_blank,
+    color          => s_vga_lcd_pixel,
+    spi_resn       => oled_resn,
+    spi_clk        => oled_clk, -- clk/2 (display max 64 MHz)
+    --spi_csn        => oled_csn, -- for 8-pin 1.54" ST7789
+    spi_dc         => oled_dc,
+    spi_mosi       => oled_mosi
+  );
+  oled_csn <= '1'; -- for 7-pin 1.3" ST7789
+  end block;
+  end generate;
 
 end Behavioral;
