@@ -2,7 +2,7 @@
 PROJECT = apple2
 BOARD = ulx3s
 # 12 25 45 85
-FPGA_SIZE = 25
+FPGA_SIZE = 85
 
 FPGA_PACKAGE = 6bg381c
 # config flash: 1:SPI (standard), 4:QSPI (quad)
@@ -43,48 +43,52 @@ CLK0_OPTIONS = \
   --clkout2=13.5
 
 VHDL_FILES = \
-  $(TOP_MODULE_FILE) \
-  ../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
-  ../../../rtl_emard/lattice/ecp5/clocks/clk_25_125_68_6_25.vhd \
-  ../../../rtl_emard/oled/oled_hex_decoder.vhd \
-  ../../../rtl_emard/oled/oled_init_pack.vhd \
-  ../../../rtl_emard/oled/oled_font_pack.vhd \
-  ../../../rtl_emard/bram/bram_true2p_1clk.vhd \
-  ../../../rtl_emard/dvi/vga2dvid.vhd \
-  ../../../rtl_emard/dvi/tmds_encoder.vhd \
-  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_phy.vhd \
-  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_rx_phy.vhd \
-  ../../../rtl_emard/usb/usb11_phy_vhdl/usb_tx_phy.vhd \
-  ../../../rtl_emard/usb/usbhost/usbh_setup_pack.vhd \
-  ../../../rtl_emard/usb/usbhost/usbh_host_hid.vhd \
-  ../../../rtl_emard/usb/usbhost/usbh_sie_vhdl.vhd \
-  ../../../rtl_emard/usb/usbhid/report_decoded_pack_generic.vhd \
-  ../../../rtl_emard/usb/usbhid/usbhid_report_decoder_darfon_joystick.vhd \
-  ../../../apple2.vhd \
-  ../../../timing_generator.vhd \
-  ../../../main_roms.vhd \
-  ../../../character_rom.vhd \
-  ../../../cpu6502.vhd \
-  ../../../keyboard.vhd \
-  ../../../PS2_Ctrl.vhd \
-  ../../../paddle.vhd \
-  ../../../vga_controller.vhd \
-  ../../../video_generator.vhd \
-  ../../../disk_ii.vhd \
-  ../../../disk_ii_rom.vhd \
-  ../../../spi_controller.vhd \
-  ../../../rtl_emard/osd/spi_osd.vhd \
-  ../../../rtl_emard/osd/spirw_slave.vhd \
+$(TOP_MODULE_FILE) \
+../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
+../../../rtl_emard/lattice/ecp5/clocks/clk_25_125_68_6_25.vhd \
+../../../rtl_emard/oled/oled_hex_decoder.vhd \
+../../../rtl_emard/oled/oled_init_pack.vhd \
+../../../rtl_emard/oled/oled_font_pack.vhd \
+../../../rtl_emard/osd/osd_vhd.vhd \
+../../../rtl_emard/spi_display/spi_display.vhd \
+../../../rtl_emard/spi_display/spi_display_init_pack.vhd \
+../../../rtl_emard/spi_display/st7789_init_pack.vhd \
+../../../rtl_emard/bram/bram_true2p_1clk.vhd \
+../../../rtl_emard/dvi/vga2dvid.vhd \
+../../../rtl_emard/dvi/tmds_encoder.vhd \
+../../../rtl_emard/usb/usb11_phy_vhdl/usb_phy.vhd \
+../../../rtl_emard/usb/usb11_phy_vhdl/usb_rx_phy.vhd \
+../../../rtl_emard/usb/usb11_phy_vhdl/usb_tx_phy.vhd \
+../../../rtl_emard/usb/usbhost/usbh_setup_pack.vhd \
+../../../rtl_emard/usb/usbhost/usbh_host_hid.vhd \
+../../../rtl_emard/usb/usbhost/usbh_sie_vhdl.vhd \
+../../../rtl_emard/usb/usbhid/report_decoded_pack_generic.vhd \
+../../../rtl_emard/usb/usbhid/usbhid_report_decoder_darfon_joystick.vhd \
+../../../apple2.vhd \
+../../../timing_generator.vhd \
+../../../main_roms.vhd \
+../../../character_rom.vhd \
+../../../cpu6502.vhd \
+../../../keyboard.vhd \
+../../../PS2_Ctrl.vhd \
+../../../paddle.vhd \
+../../../vga_controller.vhd \
+../../../video_generator.vhd \
+../../../disk_ii.vhd \
+../../../disk_ii_rom.vhd \
+../../../spi_controller.vhd \
+../../../rtl_emard/osd/spi_osd.vhd \
+../../../rtl_emard/osd/spirw_slave.vhd \
 
 #  clocks/clk_25_shift_pixel.vhd \
 
 VERILOG_FILES = \
-  ../../../rtl_emard/osd/spi_osd_v.v \
-  ../../../rtl_emard/osd/osd.v \
-  ../../../rtl_emard/osd/spirw_slave_v.v \
-  ../../../rtl_emard/usb/usbhost/usbh_sie.v \
-  ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
-  ../../../rtl_emard/usb/usbhost/usbh_crc16.v \
+../../../rtl_emard/osd/spi_osd_v.v \
+../../../rtl_emard/osd/osd.v \
+../../../rtl_emard/osd/spirw_slave_v.v \
+../../../rtl_emard/usb/usbhost/usbh_sie.v \
+../../../rtl_emard/usb/usbhost/usbh_crc5.v \
+../../../rtl_emard/usb/usbhost/usbh_crc16.v \
 
 #  $(CLK0_FILE_NAME) \
 
