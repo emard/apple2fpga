@@ -735,7 +735,7 @@ begin
   generic map
   (
     c_x_start       => c_offset_x,
-    c_x_stop        => c_offset_x+c_size_x+1,
+    c_x_stop        => c_offset_x+c_size_x+3,
     c_y_start       => c_offset_y,
     c_y_stop        => c_offset_y+c_size_y+1,
     c_x_bits        => 11, -- bits in x counter
@@ -771,7 +771,7 @@ begin
   )
   port map
   (
-    reset          => btn(2),
+    reset          => reset,
     clk_pixel      => clk_pixel, -- 28 MHz
     clk_pixel_ena  => lcd_pixel_ena,
     clk_spi        => clk_pixel_shift, -- 140 MHz
