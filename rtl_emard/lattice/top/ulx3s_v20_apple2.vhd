@@ -773,7 +773,7 @@ begin
   )
   port map
   (
-    reset          => btn(1),
+    reset          => reset,
     clk_pixel      => clk_pixel, -- 28 MHz
     clk_pixel_ena  => lcd_pixel_ena,
     clk_spi        => clk_pixel_shift, -- 140 MHz
