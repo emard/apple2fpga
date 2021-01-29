@@ -680,9 +680,7 @@ begin
       clk_pixel => clk_pixel, -- 28 MHz
       clk_shift => clk_pixel_shift, -- 5*28 MHz
 
-      --in_red   => osd_vga_r,
-      in_red(7) => not s_custom_blank,
-      in_red(6 downto 0) => osd_vga_r(7 downto 1),
+      in_red   => osd_vga_r,
       in_green => osd_vga_g,
       in_blue  => osd_vga_b,
 
