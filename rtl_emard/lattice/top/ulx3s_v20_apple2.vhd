@@ -20,7 +20,7 @@ generic
   --C_system_clock_hz: natural := 13500000; -- Hz 13.5 MHz for 50 Hz frame rate
   -- enable none or one of oled options:
   C_oled_hex    : boolean := false; -- OLED display HEX debug
-  C_oled_vga    : boolean := true; -- LCD ST7789 as display
+  C_oled_vga    : boolean := true;  -- LCD ST7789 as display
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
   C_kbd_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
@@ -29,7 +29,7 @@ generic
   -- USB joystick at (enable one of):
   C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us4     : boolean := true;  -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
@@ -101,6 +101,7 @@ architecture Behavioral of ulx3s_v20_apple2 is
   signal ddr_d: std_logic_vector(3 downto 0);
   signal dvid_red, dvid_green, dvid_blue, dvid_clock: std_logic_vector(1 downto 0);
   signal clk_pixel, clk_pixel_shift: std_logic;
+  signal clk_spi: std_logic;
   signal clocks, clocks_usb: std_logic_vector(3 downto 0);
   signal locked: std_logic;
 
@@ -229,6 +230,7 @@ begin
     clk_o  => clocks_usb
   );
   clk_6M   <= clocks_usb(1);
+  clk_spi  <= clocks_usb(0);
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
@@ -590,12 +592,6 @@ begin
   TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(31 downto 30) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   TRACK_RAM_DI <= unsigned(spi_data_out);
-  -- read: 0x0000 track and irq state, 0xFE00 btn state
-  --spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
-  --spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
-  sd_d(3) <= 'Z';
-  sd_d(1) <= 'Z';
-  sd_d(2) <= 'Z';
   S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
   S_oled(55 downto 48) <= TRACK_RAM_DI;
@@ -696,7 +692,7 @@ begin
 
   yes_oled_vga: if C_oled_vga generate
   oled_vga_blk: block
-    constant c_offset_x : natural :=  67; -- x-centering inc->move picture left
+    constant c_offset_x : natural :=  68; -- x-centering inc->move picture left
     constant c_offset_y : natural :=   2; -- y-centering inc->move picture up
     constant c_size_x   : natural := 240; -- 280 native
     constant c_size_y   : natural := 240; -- 192 native
@@ -727,7 +723,7 @@ begin
   generic map
   (
     c_x_start       => c_offset_x*2, -- *2 to match doublescan
-    c_x_stop        => c_offset_x*2+c_size_x*2+9,
+    c_x_stop        => c_offset_x*2+c_size_x*2+2,
     c_y_start       => c_offset_y*2,
     c_y_stop        => c_offset_y*2+c_size_y*2+2,
     c_x_bits        => 11, -- bits in x counter
@@ -747,13 +743,20 @@ begin
     o_osd_en => s_custom_blankn
   );
   s_custom_blank <= (not lcd_line_ena) or (not s_custom_blankn);
-  s_vga_lcd_pixel(15 downto 11) <= std_logic_vector(osd_vga_r(7 downto 3));
-  s_vga_lcd_pixel(10 downto  5) <= std_logic_vector(osd_vga_g(7 downto 2));
-  s_vga_lcd_pixel( 4 downto  0) <= std_logic_vector(osd_vga_b(7 downto 3));
+  process(clk_pixel)
+  begin
+    if rising_edge(clk_pixel) then
+      if lcd_pixel_ena = '1' then
+        s_vga_lcd_pixel(15 downto 11) <= std_logic_vector(osd_vga_r(7 downto 3));
+        s_vga_lcd_pixel(10 downto  5) <= std_logic_vector(osd_vga_g(7 downto 2));
+        s_vga_lcd_pixel( 4 downto  0) <= std_logic_vector(osd_vga_b(7 downto 3));
+      end if;
+    end if;
+  end process;
   lcd_vga_inst: entity work.spi_display
   generic map
   (
-    c_clk_spi_mhz  => C_system_clock_hz*10/1000000,
+    c_clk_spi_mhz  => C_system_clock_hz*10/1000000, -- 143 MHz
     c_reset_us     => 1,
     c_color_bits   => 16,
     c_clk_phase    => '0',
@@ -766,7 +769,7 @@ begin
     reset          => reset,
     clk_pixel      => clk_pixel, -- 28 MHz
     clk_pixel_ena  => lcd_pixel_ena,
-    clk_spi        => clk_pixel_shift, -- 140 MHz
+    clk_spi        => clk_pixel_shift, -- 143 MHz
     clk_spi_ena    => '1',
     vsync          => vga_vsync,
     blank          => s_custom_blank,
