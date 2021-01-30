@@ -589,7 +589,7 @@ begin
 
   TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(31 downto 30) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
-  track_ram_di <= unsigned(spi_data_out);
+  TRACK_RAM_DI <= unsigned(spi_data_out);
   -- read: 0x0000 track and irq state, 0xFE00 btn state
   --spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
   --spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
