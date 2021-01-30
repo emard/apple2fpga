@@ -16,8 +16,8 @@ use ecp5u.components.all;
 entity ulx3s_v20_apple2 is
 generic
 (
-  C_pixel_clock_hz: natural := 14375000; -- Hz 14.375 MHz for 60 Hz frame rate
-  --C_pixel_clock_hz: natural := 13500000; -- Hz 13.5 MHz for 50 Hz frame rate
+  C_system_clock_hz: natural := 14375000; -- Hz 14.375 MHz for 60 Hz frame rate
+  --C_system_clock_hz: natural := 13500000; -- Hz 13.5 MHz for 50 Hz frame rate
   -- enable none or one of oled options:
   C_oled_hex    : boolean := false; -- OLED display HEX debug
   C_oled_vga    : boolean := true; -- LCD ST7789 as display
@@ -102,6 +102,7 @@ architecture Behavioral of ulx3s_v20_apple2 is
   signal dvid_red, dvid_green, dvid_blue, dvid_clock: std_logic_vector(1 downto 0);
   signal clk_pixel, clk_pixel_shift: std_logic;
   signal clocks, clocks_usb: std_logic_vector(3 downto 0);
+  signal locked: std_logic;
 
   -- APPLE ][
 
@@ -117,8 +118,6 @@ architecture Behavioral of ulx3s_v20_apple2 is
   VGA_R,                                              -- Red[9:0]
   VGA_G,                                              -- Green[9:0]
   VGA_B : unsigned(9 downto 0);                       -- Blue[9:0]
-
-  signal s_custom_blankn, s_custom_blank: std_logic;
 
   -- invert active LOW sync
   signal vga_hsync, vga_vsync: std_logic;
@@ -203,18 +202,19 @@ begin
   generic map
   (
       in_hz => 25*1000000,
-    out0_hz => C_pixel_clock_hz*10,
-    out1_hz => C_pixel_clock_hz*2,
-    out2_hz => C_pixel_clock_hz
+    out0_hz => C_system_clock_hz*10,
+    out1_hz => C_system_clock_hz*2,
+    out2_hz => C_system_clock_hz
   )
   port map
   (
-    clk_i => clk_25mhz,
-    clk_o => clocks
+    clk_i   => clk_25mhz,
+    clk_o   => clocks,
+    locked  => locked
   );
-  clk_140M <= clocks(0);
-  clk_28M  <= clocks(1);
-  clk_14M  <= clocks(2);
+  clk_140M  <= clocks(0);
+  clk_28M   <= clocks(1);
+  clk_14M   <= clocks(2);
 
   clk_usb: entity work.ecp5pll
   generic map
@@ -225,10 +225,10 @@ begin
   )
   port map
   (
-    clk_i => clk_25mhz,
-    clk_o => clocks_usb
+    clk_i  => clk_25mhz,
+    clk_o  => clocks_usb
   );
-  clk_6M  <= clocks_usb(1);
+  clk_6M   <= clocks_usb(1);
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
@@ -265,14 +265,10 @@ begin
   
   -- APPLE ][ --
 
-  reset <= (not btn(0)) or power_on_reset;
-
   power_on : process(CLK_14M)
   begin
     if rising_edge(CLK_14M) then
-      if flash_clk(22) = '1' then
-        power_on_reset <= '0';
-      end if;
+      reset <= (not R_btn_joy(0)) or (not locked);
     end if;
   end process;
 
@@ -552,7 +548,20 @@ begin
     signal spi_rd, spi_wr: std_logic;
     signal spi_addr: std_logic_vector(31 downto 0);
     signal spi_data_out, spi_data_in: std_logic_vector(7 downto 0);
+    signal R_track : unsigned(track'range);
+    signal R_track_irq: std_logic;
   begin
+  process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      R_track <= track;
+      if R_track /= track then
+        R_track_irq <= '1';
+      else
+        R_track_irq <= '0';
+      end if;
+    end if;
+  end process;
 
   E_disk2_spi_ram_btn: entity work.spi_ram_btn
   generic map
@@ -569,6 +578,8 @@ begin
     miso => spi_miso,
     btn => R_btn_joy,
     irq => spi_irq,
+    floppy_req_type => std_logic_vector("00" & track),
+    floppy_req => R_track_irq,
     wr => spi_wr,
     rd => spi_rd,
     addr => spi_addr,
@@ -685,15 +696,15 @@ begin
 
   yes_oled_vga: if C_oled_vga generate
   oled_vga_blk: block
-    constant c_offset_x : natural :=   134; -- x-centering inc->move picture left
-    constant c_offset_y : natural :=     8; -- y-centering inc->move picture up
-    constant c_size_x   : natural := 240*2; -- 280 native
-    constant c_size_y   : natural := 240*2; -- 192 native
+    constant c_offset_x : natural :=  67; -- x-centering inc->move picture left
+    constant c_offset_y : natural :=   2; -- y-centering inc->move picture up
+    constant c_size_x   : natural := 240; -- 280 native
+    constant c_size_y   : natural := 240; -- 192 native
     signal hsyncedge: std_logic_vector(1 downto 0);
     signal big_blank: std_logic;
     signal lcd_line_ena, lcd_pixel_ena: std_logic;
     signal s_vga_lcd_pixel: std_logic_vector(15 downto 0);
-    --signal s_custom_blankn, s_custom_blank: std_logic;
+    signal s_custom_blankn, s_custom_blank: std_logic;
   begin
   -- every 2nd line, every 2nd pixel
   process(clk_pixel)
@@ -715,10 +726,10 @@ begin
   lcd_custom_blank_inst: entity work.osd_vhd
   generic map
   (
-    c_x_start       => c_offset_x,
-    c_x_stop        => c_offset_x+c_size_x+9,
-    c_y_start       => c_offset_y,
-    c_y_stop        => c_offset_y+c_size_y+1,
+    c_x_start       => c_offset_x*2, -- *2 to match doublescan
+    c_x_stop        => c_offset_x*2+c_size_x*2+9,
+    c_y_start       => c_offset_y*2,
+    c_y_stop        => c_offset_y*2+c_size_y*2+2,
     c_x_bits        => 11, -- bits in x counter
     c_y_bits        => 10, -- bits in y counter
     c_transparency  =>  0  -- 0 for custom blank
@@ -742,7 +753,7 @@ begin
   lcd_vga_inst: entity work.spi_display
   generic map
   (
-    c_clk_spi_mhz  => 28*5,
+    c_clk_spi_mhz  => C_system_clock_hz*10/1000000,
     c_reset_us     => 1,
     c_color_bits   => 16,
     c_clk_phase    => '0',
@@ -761,7 +772,7 @@ begin
     blank          => s_custom_blank,
     color          => s_vga_lcd_pixel,
     spi_resn       => oled_resn,
-    spi_clk        => oled_clk, -- clk/2 (display max 64 MHz)
+    spi_clk        => oled_clk, -- clk/2 (display max 64 MHz, overclock 70 MHz acceptable)
     --spi_csn        => oled_csn, -- for 8-pin 1.54" ST7789
     spi_dc         => oled_dc,
     spi_mosi       => oled_mosi
