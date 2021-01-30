@@ -29,23 +29,8 @@ TOP_MODULE = ulx3s_v20_apple2
 #TOP_MODULE = ulx3s_v31_apple2
 TOP_MODULE_FILE = ../../../rtl_emard/lattice/top/$(TOP_MODULE).vhd
 
-CLK0_NAME = clk_25_shift_pixel_v
-CLK0_FILE_NAME = clocks/$(CLK0_NAME).v
-CLK0_OPTIONS = \
-  --module=$(CLK0_NAME) \
-  --clkin_name=clki \
-  --clkin=25 \
-  --clkout0_name=clko \
-  --clkout0=135 \
-  --clkout1_name=clks1 \
-  --clkout1=27 \
-  --clkout2_name=clks2 \
-  --clkout2=13.5
-
 VHDL_FILES = \
 $(TOP_MODULE_FILE) \
-../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
-../../../rtl_emard/lattice/ecp5/clocks/clk_25_125_68_6_25.vhd \
 ../../../rtl_emard/lattice/ecp5/clocks/ecp5pll.vhd \
 ../../../rtl_emard/oled/oled_hex_decoder.vhd \
 ../../../rtl_emard/oled/oled_init_pack.vhd \
