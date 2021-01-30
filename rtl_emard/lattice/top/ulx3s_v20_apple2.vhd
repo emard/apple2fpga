@@ -122,8 +122,13 @@ architecture Behavioral of ulx3s_v20_apple2 is
   -- after OSD module 
   signal osd_vga_r, osd_vga_g, osd_vga_b: std_logic_vector(7 downto 0);
   signal osd_vga_hsync, osd_vga_vsync, osd_vga_blank: std_logic;
-  -- invert CS to get CSN
-  signal spi_csn: std_logic;
+  -- SPI BTN/DISK interface
+  signal spi_irq, spi_csn, spi_miso, spi_mosi, spi_sck: std_logic;
+  signal spi_ram_wr, spi_ram_rd: std_logic;
+  signal spi_ram_wr_data: std_logic_vector(7 downto 0);
+  signal spi_ram_addr: std_logic_vector(31 downto 0); -- MSB for ROMs
+  signal R_cpu_control: std_logic_vector(7 downto 0);
+  signal R_btn_joy: std_logic_vector(btn'range);
 
   signal clk_140M, clk_28M, clk_14M, clk_2M, PRE_PHASE_ZERO: std_logic;
   signal IO_SELECT, DEVICE_SELECT : std_logic_vector(7 downto 0);
@@ -223,6 +228,14 @@ begin
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
+
+  -- ESP32 -> FPGA
+  spi_csn <= not wifi_gpio5;
+  spi_sck <= gn(11); -- wifi_gpio25
+  spi_mosi <= gp(11); -- wifi_gpio26
+  -- FPGA -> ESP32
+  wifi_gpio16 <= spi_miso;
+  wifi_gpio0 <= not spi_irq; -- wifi_gpio0 IRQ active low
 
   S_enable <= not btn(1); -- BTN1 to hold OLED display
 
@@ -523,90 +536,55 @@ begin
   image <= "000000" & x"0";
   end generate; -- apple2_sdcard
 
+  process(CLK_14M)
+  begin
+    if rising_edge(CLK_14M) then
+      R_btn_joy <= btn;
+    end if;
+  end process;
+
   G_disk2_spi_slave: if C_esp32 generate
   B_disk2_spi_slave: block
     signal spi_rd, spi_wr: std_logic;
     signal spi_addr: std_logic_vector(31 downto 0);
     signal spi_data_out, spi_data_in: std_logic_vector(7 downto 0);
-    signal R_btn, R_btn_latch: std_logic_vector(btn'range);
-    signal R_track : unsigned(track'range);
-    signal R_irq: std_logic_vector(1 downto 0); -- interrupt request register
-    signal R_track_irq, R_btn_irq: std_logic;
-    signal R_spi_rd: std_logic;
-    signal R_btn_debounce: unsigned(19 downto 0); -- 26Hz btn debounce
   begin
-  E_disk2_spi_slave: entity work.spirw_slave
+
+  E_disk2_spi_ram_btn: entity work.spi_ram_btn
   generic map
   (
+    c_sclk_capable_pin => 0,
     c_addr_bits => 32
   )
   port map
   (
-    clk                 => CLK_14M,
-
-    csn                 => spi_csn,
-    sclk                => wifi_gpio16, --              -- sd_clk,   -- wifi_gpio14
-    mosi                => sd_d(1),     -- wifi_gpio4,  -- sd_cmd,   -- wifi_gpio15
-    miso                => sd_d(2),     -- wifi_gpio12, -- sd_d(0),  -- wifi_gpio2
-
-    rd                  => spi_rd,
-    wr                  => spi_wr,
-    addr                => spi_addr,
-    data_in             => spi_data_in,
-    data_out            => spi_data_out
+    clk => CLK_14M,
+    csn => spi_csn,
+    sclk => spi_sck,
+    mosi => spi_mosi,
+    miso => spi_miso,
+    btn => R_btn_joy,
+    irq => spi_irq,
+    wr => spi_wr,
+    rd => spi_rd,
+    addr => spi_addr,
+    data_in => spi_data_in,
+    data_out => spi_data_out
   );
+
   TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(31 downto 30) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   track_ram_di <= unsigned(spi_data_out);
   -- read: 0x0000 track and irq state, 0xFE00 btn state
   --spi_data_in <= std_logic_vector("00" & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
   --spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK) when spi_addr(15 downto 14) = "00" else "0" & btn;
-  sd_d(3) <= 'Z'; -- CS_N
+  sd_d(3) <= 'Z';
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
   S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
   S_oled(55 downto 48) <= TRACK_RAM_DI;
-  P_read_irq_flags: process(CLK_14M)
-  begin
-    if rising_edge(CLK_14M) then
-      if spi_rd = '1' then
-        case spi_addr(31 downto 30) is
-          when "00" => -- reading track number resets IRQ state
-            spi_data_in <= std_logic_vector(R_btn_irq & R_track_irq & TRACK);
-          when others =>
-            spi_data_in <= "0" & R_btn;
-        end case;
-      end if;
-    end if;
-  end process;
-  -- generate track change request signal and track BTN state
-  P_irq_controller: process(CLK_14M)
-  begin
-    if rising_edge(CLK_14M) then
-      R_spi_rd <= spi_rd;
-      if spi_rd = '0' and R_spi_rd = '1' and spi_addr(31 downto 30) = "00" then -- reading track number resets IRQ state
-        R_track_irq <= '0';
-        R_btn_irq <= '0';
-      else
-        if R_track /= track then
-          R_track_irq <= '1';
-        end if;
-        R_track <= track;
-        R_btn_latch <= btn;
-        if R_btn /= R_btn_latch and R_btn_debounce(R_btn_debounce'high) = '1' and R_btn_irq = '0' then
-          R_btn_irq <= '1';
-          R_btn_debounce <= (others => '0');
-          R_btn <= R_btn_latch;
-        else
-          if R_btn_debounce(R_btn_debounce'high) = '0' then
-            R_btn_debounce <= R_btn_debounce + 1;
-          end if;
-        end if;
-      end if;
-    end if;
-  end process;
-  wifi_gpio0 <= not (R_track_irq or R_btn_irq); -- interrupt line, active on falling edge
+
   end block;
   end generate; -- disk2_spi_slave
 
@@ -645,7 +623,6 @@ begin
   vga_blank <= not vga_nblank;
   vga_hsync <= not vga_hs;
   vga_vsync <= not vga_vs;
-  spi_csn <= not wifi_gpio5;
 
   -- SPI OSD pipeline
   spi_osd_inst: entity work.spi_osd
@@ -664,7 +641,7 @@ begin
     i_g => std_logic_vector(vga_g(9 downto 2)),
     i_b => std_logic_vector(vga_b(9 downto 2)),
     i_hsync => vga_hsync, i_vsync => vga_vsync, i_blank => vga_blank,
-    i_csn => spi_csn, i_sclk => wifi_gpio16, i_mosi => sd_d(1),
+    i_csn => spi_csn, i_sclk => spi_sck, i_mosi => spi_mosi,
     o_r => osd_vga_r, o_g => osd_vga_g, o_b => osd_vga_b,
     o_hsync => osd_vga_hsync, o_vsync => osd_vga_vsync, o_blank => osd_vga_blank
   );
@@ -735,7 +712,7 @@ begin
   generic map
   (
     c_x_start       => c_offset_x,
-    c_x_stop        => c_offset_x+c_size_x+3,
+    c_x_stop        => c_offset_x+c_size_x+9,
     c_y_start       => c_offset_y,
     c_y_stop        => c_offset_y+c_size_y+1,
     c_x_bits        => 11, -- bits in x counter

@@ -50,6 +50,7 @@ $(TOP_MODULE_FILE) \
 ../../../rtl_emard/oled/oled_init_pack.vhd \
 ../../../rtl_emard/oled/oled_font_pack.vhd \
 ../../../rtl_emard/osd/osd_vhd.vhd \
+../../../rtl_emard/osd/spi_ram_btn.vhd \
 ../../../rtl_emard/spi_display/spi_display.vhd \
 ../../../rtl_emard/spi_display/spi_display_init_pack.vhd \
 ../../../rtl_emard/spi_display/st7789_init_pack.vhd \
@@ -85,6 +86,7 @@ $(TOP_MODULE_FILE) \
 VERILOG_FILES = \
 ../../../rtl_emard/osd/spi_osd_v.v \
 ../../../rtl_emard/osd/osd.v \
+../../../rtl_emard/osd/spi_ram_btn_v.v \
 ../../../rtl_emard/osd/spirw_slave_v.v \
 ../../../rtl_emard/usb/usbhost/usbh_sie.v \
 ../../../rtl_emard/usb/usbhost/usbh_crc5.v \
