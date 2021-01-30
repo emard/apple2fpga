@@ -16,6 +16,8 @@ use ecp5u.components.all;
 entity ulx3s_v20_apple2 is
 generic
 (
+  C_pixel_clock_hz: natural := 14375000; -- Hz 14.375 MHz for 60 Hz frame rate
+  --C_pixel_clock_hz: natural := 13500000; -- Hz 13.5 MHz for 50 Hz frame rate
   -- enable none or one of oled options:
   C_oled_hex    : boolean := false; -- OLED display HEX debug
   C_oled_vga    : boolean := true; -- LCD ST7789 as display
@@ -27,7 +29,7 @@ generic
   -- USB joystick at (enable one of):
   C_joy_us2     : boolean := false; -- onboard micro USB with OTG adapter
   C_joy_us3     : boolean := false; -- PMOD US3 at GP,GN 25,22,21
-  C_joy_us4     : boolean := true;  -- PMOD US4 at GP,GN 24,23,20
+  C_joy_us4     : boolean := false; -- PMOD US4 at GP,GN 24,23,20
   -- apple ][ disk
   C_apple2_disk : boolean := true;  -- false BTNs debug to select track
   -- C_apple2_disk = true, then enable one of
@@ -99,6 +101,7 @@ architecture Behavioral of ulx3s_v20_apple2 is
   signal ddr_d: std_logic_vector(3 downto 0);
   signal dvid_red, dvid_green, dvid_blue, dvid_clock: std_logic_vector(1 downto 0);
   signal clk_pixel, clk_pixel_shift: std_logic;
+  signal clocks, clocks_usb: std_logic_vector(3 downto 0);
 
   -- APPLE ][
 
@@ -196,35 +199,36 @@ architecture Behavioral of ulx3s_v20_apple2 is
   alias us4_fpga_dp: std_logic is gp(20); -- direct
 
 begin
-  -- 60Hz frame rate
-  clk_apple2: entity work.clk_25_140_28_14
+  clk_apple2: entity work.ecp5pll
+  generic map
+  (
+      in_hz => 25*1000000,
+    out0_hz => C_pixel_clock_hz*10,
+    out1_hz => C_pixel_clock_hz*2,
+    out2_hz => C_pixel_clock_hz
+  )
   port map
   (
-      CLKI        =>  clk_25mhz,
-      CLKOP       =>  clk_140M,  -- 143.75  MHz
-      CLKOS       =>  clk_28M,   --  28.75  MHz
-      CLKOS2      =>  clk_14M    --  14.375 MHz
+    clk_i => clk_25mhz,
+    clk_o => clocks
   );
+  clk_140M <= clocks(0);
+  clk_28M  <= clocks(1);
+  clk_14M  <= clocks(2);
 
-  -- 56Hz frame rate
-  --clk_apple2: entity work.clk_25_shift_pixel
-  --port map
-  --(
-  --    clki        =>  clk_25mhz,
-  --    clko        =>  clk_140M,  -- 135.00  MHz
-  --    clks1       =>  clk_28M,   --  27.00  MHz
-  --    clks2       =>  clk_14M    --  13.50  MHz
-  --);
-  
-  clk_usb: entity work.clk_25_125_68_6_25
+  clk_usb: entity work.ecp5pll
+  generic map
+  (
+      in_hz =>  25*1000000,
+    out0_hz => 120*1000000,
+    out1_hz =>   6*1000000
+  )
   port map
   (
-      CLKI        =>  clk_25mhz,
-      CLKOP       =>  open,
-      CLKOS       =>  open,
-      CLKOS2      =>  clk_6M,
-      CLKOS3      =>  open
+    clk_i => clk_25mhz,
+    clk_o => clocks_usb
   );
+  clk_6M  <= clocks_usb(1);
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;

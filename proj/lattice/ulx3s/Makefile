@@ -46,6 +46,7 @@ VHDL_FILES = \
 $(TOP_MODULE_FILE) \
 ../../../rtl_emard/lattice/ecp5/clocks/clk_25_140_28_14.vhd \
 ../../../rtl_emard/lattice/ecp5/clocks/clk_25_125_68_6_25.vhd \
+../../../rtl_emard/lattice/ecp5/clocks/ecp5pll.vhd \
 ../../../rtl_emard/oled/oled_hex_decoder.vhd \
 ../../../rtl_emard/oled/oled_init_pack.vhd \
 ../../../rtl_emard/oled/oled_font_pack.vhd \
