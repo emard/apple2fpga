@@ -101,7 +101,6 @@ architecture Behavioral of ulx3s_v20_apple2 is
   signal ddr_d: std_logic_vector(3 downto 0);
   signal dvid_red, dvid_green, dvid_blue, dvid_clock: std_logic_vector(1 downto 0);
   signal clk_pixel, clk_pixel_shift: std_logic;
-  signal clk_spi: std_logic;
   signal clocks, clocks_usb: std_logic_vector(3 downto 0);
   signal locked: std_logic;
 
@@ -230,7 +229,6 @@ begin
     clk_o  => clocks_usb
   );
   clk_6M   <= clocks_usb(1);
-  clk_spi  <= clocks_usb(0);
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
