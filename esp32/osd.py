@@ -29,6 +29,8 @@ screen_y = const(18)
 cwd = "/"
 exp_names = " KMGTE"
 smark = bytearray([32,16,42]) # space, right triangle, asterisk
+diskfile = open("main.py","rb")
+trackbuf = bytearray(6656)
 
 spi_read_irq = bytearray([1,0xF1,0,0,0,0,0])
 spi_read_trackno = bytearray([1,0xD0,0,0,0,0,0])
@@ -36,6 +38,7 @@ spi_read_btn = bytearray([1,0xFB,0,0,0,0,0])
 spi_result = bytearray(7)
 spi_enable_osd = bytearray([0,0xFE,0,0,0,1])
 spi_write_osd = bytearray([0,0xFD,0,0,0])
+spi_write_track = bytearray(5)
 spi_channel = const(2)
 spi_freq = const(2000000)
 
@@ -47,26 +50,33 @@ def init_spi():
 
 @micropython.viper
 def update_track():
-  p8result = ptr8(addressof(spi_result))
+  p8result=ptr8(addressof(spi_result))
   cs.on()
   spi.write_readinto(spi_read_trackno,spi_result)
+  cs.off()
+  track=p8result[6]
+  diskfile.seek(6656*track)
+  diskfile.readinto(trackbuf)
+  cs.on()
+  spi.write(spi_write_track)
+  spi.write(trackbuf)
   cs.off()
 
 @micropython.viper
 def irq_handler(pin):
-  p8result = ptr8(addressof(spi_result))
+  p8result=ptr8(addressof(spi_result))
   cs.on()
-  spi.write_readinto(spi_read_irq, spi_result)
+  spi.write_readinto(spi_read_irq,spi_result)
   cs.off()
-  btn_irq = p8result[6]
-  if btn_irq&1: # drive request
+  irq=p8result[6]
+  if irq&1: # drive request
     update_track()
-  if btn_irq&0x80: # BTN event IRQ flag
+  if irq&0x80: # BTN event IRQ flag
     cs.on()
     spi.write_readinto(spi_read_btn, spi_result)
     cs.off()
-    btn = p8result[6]
-    p8enable = ptr8(addressof(enable))
+    btn=p8result[6]
+    p8enable=ptr8(addressof(enable))
     if p8enable[0]&2: # wait to release all BTNs
       if btn==1:
         p8enable[0]&=1 # clear bit that waits for all BTNs released
@@ -147,7 +157,7 @@ def fullpath(fname):
     return cwd+"/"+fname
 
 def change_file():
-  global fb_selected, fb_topitem, fb_cursor
+  global fb_selected, fb_topitem, fb_cursor, diskfile
   oldselected = fb_selected - fb_topitem
   fb_selected = fb_cursor
   try:
@@ -228,6 +238,10 @@ def change_file():
       s.loadprg(filename)
       del s
       gc.collect()
+    if filename.endswith(".nib"):
+      diskfile=open(filename,"rb")
+      osd_enable(0)
+      enable[0]=0
 
 @micropython.viper
 def osd_enable(en:int):
