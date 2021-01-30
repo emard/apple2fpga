@@ -1,4 +1,4 @@
--- VHDL wrapper for spirw_slave_v.v
+-- VHDL wrapper for spi_ram_btn_v.v
 
 library ieee;
 use ieee.std_logic_1164.all;
