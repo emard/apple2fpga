@@ -3,6 +3,14 @@
 It boots and even supports read-only floopy images
 in NIB format.
 
+# compiling
+
+Edit "Makefile" and select FPGA size 25/45/85
+
+    make clean; make prog
+
+# usage
+
 Raw floppy images can be written to SD card with ESP32 uftpd.py
 
     ftp> put disk2.nib sd@0
