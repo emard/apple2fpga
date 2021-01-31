@@ -9,10 +9,11 @@ FPGA_PACKAGE ?= CABGA381
 # ******* design files *******
 CONSTRAINTS ?= board_constraints.lpf
 TOP_MODULE ?= top
-VERILOG_FILES ?= $(TOP_MODULE).v
+VERILOG_FILES ?= 
 # implicit list of *.vhd VHDL files to be converted to verilog *.v
 # files here are list as *.v but user should
 # edit original source which has *.vhd extension (vhdl_blink.vhd)
+VHD2VL_FILES ?=
 VHDL_FILES ?=
 
 # ******* tools installation paths *******
@@ -50,15 +51,16 @@ ifeq ($(FPGA_CHIP), lfe5u-85f)
   CHIP_ID=0x41113043
 endif
 
-ifeq ($(FPGA_SIZE), 12)
-  FPGA_K=$(FPGA_PREFIX)25
-  IDCODE_CHIPID=--idcode $(CHIP_ID)
-else
+#ifeq ($(FPGA_SIZE), 12)
+#  FPGA_K=$(FPGA_PREFIX)25
+#  IDCODE_CHIPID=--idcode $(CHIP_ID)
+#else
   FPGA_K=$(FPGA_PREFIX)$(FPGA_SIZE)
   IDCODE_CHIPID=
-endif
+#endif
 
 FPGA_CHIP_EQUIVALENT ?= lfe5u-$(FPGA_K)f
+
 
 # clock generator
 CLK0_NAME ?= clk0
@@ -85,7 +87,6 @@ endif
 # programming tools
 UJPROG ?= fujprog
 OPENFPGALOADER ?= openFPGALoader
-OPENFPGALOADER_OPTIONS ?= --board ulx3s
 FLEAFPGA_JTAG ?= FleaFPGA-JTAG 
 OPENOCD ?= openocd
 OPENOCD_INTERFACE ?= $(SCRIPTS)/ft231x.ocd
@@ -103,7 +104,7 @@ all: $(BOARD)_$(FPGA_SIZE)f_$(PROJECT).bit $(BOARD)_$(FPGA_SIZE)f_$(PROJECT).svf
 
 # VHDL to VERILOG conversion
 # convert all *.vhd filenames to .v extension
-VHDL_TO_VERILOG_FILES = $(VHDL_FILES:.vhd=.v)
+VHDL_TO_VERILOG_FILES = $(VHD2VL_FILES:.vhd=.v)
 # implicit conversion rule
 %.v: %.vhd
 	$(VHDL2VL) $< $@
@@ -119,9 +120,12 @@ VHDL_TO_VERILOG_FILES = $(VHDL_FILES:.vhd=.v)
 #$(PROJECT).json: $(PROJECT).ys $(VERILOG_FILES) $(VHDL_TO_VERILOG_FILES)
 #	$(YOSYS) $(PROJECT).ys
 
-$(PROJECT).json: $(VERILOG_FILES) $(VHDL_TO_VERILOG_FILES)
+#	-p "read -vlog2k $(VERILOG_FILES) $(VHDL_TO_VERILOG_FILES)"
+
+$(PROJECT).json: $(VERILOG_FILES) $(VHDL_TO_VERILOG_FILES) $(VHDL_FILES)
 	$(YOSYS) \
-	-p "read -sv $(VERILOG_FILES) $(VHDL_TO_VERILOG_FILES)" \
+	-p "ghdl --ieee=synopsys --std=08 -fexplicit -frelaxed-rules $(VHDL_FILES) -e $(TOP_MODULE)" \
+	-p "read_verilog -sv $(VERILOG_FILES)" \
 	-p "hierarchy -top ${TOP_MODULE}" \
 	-p "synth_ecp5 ${YOSYS_OPTIONS} -json ${PROJECT}.json"
 
@@ -174,7 +178,7 @@ program: $(BOARD)_$(FPGA_SIZE)f_$(PROJECT).bit
 # program SRAM with OPENFPGALOADER
 prog_ofl: program_ofl
 program_ofl: $(BOARD)_$(FPGA_SIZE)f_$(PROJECT).bit
-	$(OPENFPGALOADER) $(OPENFPGALOADER_OPTIONS) $<
+	$(OPENFPGALOADER) -b ulx3s $<
 
 # program SRAM  with FleaFPGA-JTAG (temporary)
 program_flea: $(BOARD)_$(FPGA_SIZE)f_$(PROJECT).vme
