@@ -94,7 +94,6 @@ architecture Behavioral of usbh_host_hid is
   signal S_sof_ep: std_logic_vector(3 downto 0);
 
   -- sie wires
-  signal  rst_i             :  std_logic;
   signal  start_i           :  std_logic := '0';
   signal  in_transfer_i     :  std_logic := '0';
   signal  sof_transfer_i    :  std_logic := '0';
@@ -231,6 +230,7 @@ architecture Behavioral of usbh_host_hid is
                       R_retry <= R_retry + 1;
                     end if;
                   end if;
+                when others =>
               end case;
             else -- transmission is going on -- advance address
               if tx_pop_o = '1' then
@@ -333,6 +333,7 @@ architecture Behavioral of usbh_host_hid is
               R_wLength(7 downto 0) <= tx_data_i;
             when "111" => -- every 8 bytes, 8th byte wLength high byte currently forced to 0
               R_wLength(15 downto 8) <= x"00"; -- tx_data_i;
+            when others =>
           end case;
         when others =>
           R_wLength <= x"0000";
@@ -596,7 +597,7 @@ architecture Behavioral of usbh_host_hid is
   port map
   (
     clk_i             => clk_usb, -- low speed: 6 MHz or 7.5 MHz, high speed: 48 MHz or 60 MHz
-    rst_i             => rst_i,
+    rst_i             => '0',
     start_i           => start_i,
     in_transfer_i     => in_transfer_i,
     sof_transfer_i    => sof_transfer_i,
