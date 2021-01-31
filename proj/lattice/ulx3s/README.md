@@ -7,18 +7,21 @@ Raw floppy images can be written to SD card with ESP32 uftpd.py
 
     ftp> put disk2.nib sd@0
 
-Or ESP32 disk2.py server and the image file file can be put
+Or ESP32 osd.py server and the image file file can be put
 ESP32 FLASH filesystem:
 
-    ftp> put disk2.py
+    ftp> put osd.py
     ftp> put disk2.nib
 
 and ESP32 DISK server started:
 
     screen /dev/ttyUSB0 115200
-    >>> import disk2
-    import disk2
-    DISK ][ disk2.nib
+    >>> import osd
+    import osd
+
+press 4 direction buttons together (BTN3-6) or BTN 1
+to open OSD menu, select file disk2.nib by pressing right direction (BTN6)
+and it will "insert" disk2.nib floppy into emulated drive.
 
 Some apple2 hints:
 
