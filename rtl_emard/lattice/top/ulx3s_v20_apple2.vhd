@@ -10,8 +10,8 @@ use work.report_decoded_pack.all;
 -- package for LCD initialization
 use work.st7789_init_pack.all;
 
-library ecp5u;
-use ecp5u.components.all;
+--library ecp5u;
+--use ecp5u.components.all;
 
 entity ulx3s_v20_apple2 is
 generic
@@ -197,6 +197,10 @@ architecture Behavioral of ulx3s_v20_apple2 is
   --signal us4_fpga_dp: std_logic; -- pins up flat cable
   alias us4_fpga_dp: std_logic is gp(20); -- direct
 
+  component ODDRX1F
+    port (D0, D1, SCLK, RST: in std_logic; Q: out std_logic);
+  end component;
+
 begin
   clk_apple2: entity work.ecp5pll
   generic map
@@ -216,7 +220,7 @@ begin
   clk_28M   <= clocks(1);
   clk_14M   <= clocks(2);
 
-  clk_usb: entity work.ecp5pll
+  clk_usbhid: entity work.ecp5pll
   generic map
   (
       in_hz =>  25*1000000,
@@ -244,7 +248,7 @@ begin
   S_enable <= not btn(1); -- BTN1 to hold OLED display
 
   G_oled: if C_oled_hex generate
-  oled_inst: entity oled_hex_decoder
+  oled_inst: entity work.oled_hex_decoder
   generic map
   (
     C_data_len => S_oled'length
@@ -324,7 +328,7 @@ begin
   G_us2: if C_joy_us2 generate
   usb_fpga_pu_dp <= '0';
   usb_fpga_pu_dn <= '0';
-  us2_hid_host_inst: entity usbh_host_hid
+  us2_hid_host_inst: entity work.usbh_host_hid
   generic map
   (
     C_report_length_strict => '1',
@@ -347,7 +351,7 @@ begin
   us3_fpga_pu_dn <= '0';
   --us3_fpga_dp <= not us3_fpga_n_dp; -- pins up flat cable
   us3_fpga_dp <= 'Z'; -- pins down flat cable
-  us3_hid_host_inst: entity usbh_host_hid
+  us3_hid_host_inst: entity work.usbh_host_hid
   generic map
   (
     C_report_length_strict => '1',
@@ -370,7 +374,7 @@ begin
   us4_fpga_pu_dn <= '0';
   --us4_fpga_dp <= not us4_fpga_n_dp; -- pins up flat cable
   us4_fpga_dp <= 'Z'; -- pins down flat cable
-  us4_hid_host_inst: entity usbh_host_hid
+  us4_hid_host_inst: entity work.usbh_host_hid
   generic map
   (
     C_report_length_strict => '1',
@@ -388,7 +392,7 @@ begin
   );
   end generate;
 
-  usbhid_report_decoder: entity usbhid_report_decoder
+  usbhid_report_decoder: entity work.usbhid_report_decoder
   port map
   (
     clk => clk_usb,
@@ -505,7 +509,7 @@ begin
   end generate; -- apple2_disk
   
   G_not_apple2_disk: if not C_apple2_disk generate
-  TRACK(4 downto 0) <= btn(6 downto 2);
+  TRACK(4 downto 0) <= unsigned(btn(6 downto 2));
   end generate; -- not apple2_disk, tracks selected by BTNs
 
   G_apple2_sdcard: if C_sdcard generate
@@ -529,8 +533,8 @@ begin
     );
   sd_d(1) <= 'Z';
   sd_d(2) <= 'Z';
-  S_oled(45 downto 32) <= TRACK_RAM_ADDR;
-  S_oled(55 downto 48) <= TRACK_RAM_DI;
+  S_oled(45 downto 32) <= std_logic_vector(TRACK_RAM_ADDR);
+  S_oled(55 downto 48) <= std_logic_vector(TRACK_RAM_DI);
   -- selects disk image
   --image <= "0000000" & SW(2 downto 0);
   image <= "000000" & x"0";
@@ -590,9 +594,9 @@ begin
   TRACK_RAM_WE <= '1' when spi_wr = '1' and spi_addr(31 downto 30) = "00" else '0'; -- write disk track to 0x0000
   TRACK_RAM_ADDR <= unsigned(spi_addr(TRACK_RAM_ADDR'range));
   TRACK_RAM_DI <= unsigned(spi_data_out);
-  S_oled(45 downto 32) <= TRACK_RAM_ADDR; -- disk writes to track buffer
+  S_oled(45 downto 32) <= std_logic_vector(TRACK_RAM_ADDR); -- disk writes to track buffer
   --S_oled(45 downto 32) <= TRACK_ADDR; -- CPU reads from track buffer
-  S_oled(55 downto 48) <= TRACK_RAM_DI;
+  S_oled(55 downto 48) <= std_logic_vector(TRACK_RAM_DI);
 
   end block;
   end generate; -- disk2_spi_slave
@@ -618,13 +622,13 @@ begin
   );
 
   -- Processor PC on the right four digits
-  S_oled(15 downto 0) <= cpu_pc;
+  S_oled(15 downto 0) <= std_logic_vector(cpu_pc);
 
   -- Current disk track on middle two digits 
-  S_oled(21 downto 16) <= track;
+  S_oled(21 downto 16) <= std_logic_vector(track);
 
   -- Current disk image on left two digits
-  S_oled(31 downto 24) <= image(7 downto 0);
+  S_oled(31 downto 24) <= std_logic_vector(image(7 downto 0));
   
   clk_pixel <= CLK_28M;
   clk_pixel_shift <= CLK_140M;
