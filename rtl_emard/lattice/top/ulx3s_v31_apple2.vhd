@@ -14,6 +14,9 @@ use ecp5u.components.all;
 entity ulx3s_v31_apple2 is
 generic
 (
+  C_system_clock_hz: natural := 14375000; -- Hz 14.375 MHz for 60 Hz frame rate
+  --C_system_clock_hz: natural := 13500000; -- Hz 13.5 MHz for 50 Hz frame rate
+
   C_oled        : boolean := false; -- OLED display HEX debug
   -- PS/2 keyboard at (enable one of):
   C_kbd_us2     : boolean := true;  -- onboard micro USB with OTG adapter
@@ -98,6 +101,8 @@ architecture Behavioral of ulx3s_v31_apple2 is
   signal ddr_d: std_logic_vector(3 downto 0);
   signal dvid_red, dvid_green, dvid_blue, dvid_clock: std_logic_vector(1 downto 0);
   signal clk_pixel, clk_pixel_shift: std_logic;
+  signal clocks, clocks_usb: std_logic_vector(3 downto 0);
+  signal locked: std_logic;
 
   -- APPLE ][
 
@@ -189,34 +194,37 @@ architecture Behavioral of ulx3s_v31_apple2 is
 
 begin
   -- 60Hz frame rate
-  clk_apple2: entity work.clk_25_140_28_14
+  clk_apple2: entity work.ecp5pll
+  generic map
+  (
+      in_hz => 25*1000000,
+    out0_hz => C_system_clock_hz*10,
+    out1_hz => C_system_clock_hz*2,
+    out2_hz => C_system_clock_hz
+  )
   port map
   (
-      CLKI        =>  clk_25mhz,
-      CLKOP       =>  clk_140M,  -- 143.75  MHz
-      CLKOS       =>  clk_28M,   --  28.75  MHz
-      CLKOS2      =>  clk_14M    --  14.375 MHz
+    clk_i   => clk_25mhz,
+    clk_o   => clocks,
+    locked  => locked
   );
+  clk_140M  <= clocks(0);
+  clk_28M   <= clocks(1);
+  clk_14M   <= clocks(2);
 
-  -- 56Hz frame rate
-  --clk_apple2: entity work.clk_25_shift_pixel
-  --port map
-  --(
-  --    clki        =>  clk_25mhz,
-  --    clko        =>  clk_140M,  -- 135.00  MHz
-  --    clks1       =>  clk_28M,   --  27.00  MHz
-  --    clks2       =>  clk_14M    --  13.50  MHz
-  --);
-  
-  clk_usb: entity work.clk_25_125_68_6_25
+  clk_usbhid: entity work.ecp5pll
+  generic map
+  (
+      in_hz =>  25*1000000,
+    out0_hz => 120*1000000,
+    out1_hz =>   6*1000000
+  )
   port map
   (
-      CLKI        =>  clk_25mhz,
-      CLKOP       =>  open,
-      CLKOS       =>  open,
-      CLKOS2      =>  clk_6M,
-      CLKOS3      =>  open
+    clk_i  => clk_25mhz,
+    clk_o  => clocks_usb
   );
+  clk_6M   <= clocks_usb(1);
 
   wifi_rxd <= ftdi_txd;
   ftdi_rxd <= wifi_txd;
@@ -650,7 +658,7 @@ begin
   generic map
   (
     c_start_x => 26, c_start_y => 32, -- xy centered
-    c_chars_x => 64, c_chars_y => 20, -- xy size, slightly less than full screen
+    c_char_bits_x => 6, c_chars_y => 20, -- xy size, slightly less than full screen
     c_init_on => 0, -- 1:OSD initially shown without any SPI init
     c_char_file => "osd.mem", -- initial OSD content
     c_font_file => "font_bizcat8x16.mem"
@@ -662,7 +670,7 @@ begin
     i_g => std_logic_vector(vga_g(9 downto 2)),
     i_b => std_logic_vector(vga_b(9 downto 2)),
     i_hsync => vga_hsync, i_vsync => vga_vsync, i_blank => vga_blank,
-    i_csn => spi_csn, i_sclk => wifi_gpio26, i_mosi => sd_d(1), o_miso => open,
+    i_csn => spi_csn, i_sclk => wifi_gpio26, i_mosi => sd_d(1),
     o_r => osd_vga_r, o_g => osd_vga_g, o_b => osd_vga_b,
     o_hsync => osd_vga_hsync, o_vsync => osd_vga_vsync, o_blank => osd_vga_blank
   );
